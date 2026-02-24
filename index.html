@@ -1579,15 +1579,22 @@ async function captureOCR() {
     const data = await response.json();
     hideLoading();
 
+    if (!response.ok) {
+      const errMsg = data.error?.message || JSON.stringify(data);
+      toast('API Error: ' + errMsg, 6000);
+      console.error('API error:', data);
+      return;
+    }
+
     if (data.content && data.content[0]) {
       let text = data.content[0].text.trim();
-      // Remove markdown code blocks if present
       text = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
       const product = JSON.parse(text);
       showPreview(normalize(product));
       vibrate();
     } else {
-      toast('OCR failed. Try again or use manual entry.');
+      toast('OCR failed — unexpected response format', 4000);
+      console.error('Unexpected response:', data);
     }
 
   } catch (err) {
