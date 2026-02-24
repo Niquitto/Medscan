@@ -1482,60 +1482,79 @@ function parseQRData(text) {
 
 function parseGS1(text) {
   const result = {};
-  // GS1 Application Identifiers
-  const AIs = [
-    { ai: '01', key: 'gtin',  len: 14, fixed: true  },
-    { ai: '17', key: 'exp',   len: 6,  fixed: true  },
-    { ai: '10', key: 'lot',   len: null, fixed: false },
-    { ai: '21', key: 'sn',    len: null, fixed: false },
-  ];
+
+  // FNC1 separator can appear as char code 29, \x1d, or □
+  // Normalize all separators to a single char
+  const SEP = '\x1d';
+  let data = text.replace(/\u001d|□|\x1d/g, SEP);
+
+  // Fixed-length AIs (AI → length of value)
+  const FIXED = {
+    '01': 14,  // GTIN
+    '02': 14,  // GTIN of contained
+    '03': 14,
+    '17': 6,   // EXP date YYMMDD
+    '31': 8,
+    '32': 8,
+  };
+
+  // Variable-length AIs we care about
+  const VARIABLE = {
+    '10': 'lot',   // Batch/Lot
+    '21': 'sn',    // Serial Number
+    '11': 'prodDate',
+    '13': 'packDate',
+  };
 
   let i = 0;
-  while (i < text.length) {
-    let matched = false;
-    for (const { ai, key, len, fixed } of AIs) {
-      if (text.startsWith(ai, i)) {
-        i += ai.length;
-        if (fixed && len) {
-          result[key] = text.substr(i, len);
-          i += len;
-        } else {
-          // Variable length — read until next known AI or end
-          const nextAI = findNextAI(text, i, AIs);
-          result[key] = text.substring(i, nextAI);
-          i = nextAI;
-        }
-        matched = true;
-        break;
-      }
+  while (i < data.length) {
+    // Try 2-digit AI first
+    const ai2 = data.substr(i, 2);
+    const ai3 = data.substr(i, 3);
+    const ai4 = data.substr(i, 4);
+
+    if (FIXED[ai2] !== undefined) {
+      const len = FIXED[ai2];
+      const val = data.substr(i + 2, len);
+      if (ai2 === '01') result.gtin = val;
+      if (ai2 === '17') result.expRaw = val;
+      i += 2 + len;
+
+    } else if (VARIABLE[ai2] !== undefined) {
+      i += 2;
+      // Read until FNC1 separator or end
+      const end = data.indexOf(SEP, i);
+      const val = end === -1 ? data.substr(i) : data.substring(i, end);
+      result[VARIABLE[ai2]] = val.trim();
+      i = end === -1 ? data.length : end + 1;
+
+    } else {
+      // Unknown AI or data — skip one char
+      i++;
     }
-    if (!matched) i++;
   }
 
-  // Convert GTIN to REF if possible (last 8 chars, strip leading zeros)
+  // Derive REF from GTIN (strip leading zeros, keep last meaningful part)
   if (result.gtin && !result.ref) {
-    result.ref = result.gtin.replace(/^0+/, '');
+    result.ref = result.gtin.replace(/^0+/, '') || result.gtin;
   }
 
-  // Convert EXP from YYMMDD to MM-YYYY
-  if (result.exp && result.exp.length === 6) {
-    const yy = result.exp.substr(0, 2);
-    const mm = result.exp.substr(2, 2);
+  // Convert EXP from YYMMDD → MM-YYYY
+  if (result.expRaw && result.expRaw.length === 6) {
+    const yy = result.expRaw.substr(0, 2);
+    const mm = result.expRaw.substr(2, 2);
+    const dd = result.expRaw.substr(4, 2);
     const year = parseInt(yy) > 50 ? '19' + yy : '20' + yy;
+    // dd=00 means last day of month (GS1 spec)
     result.exp = mm + '-' + year;
   }
 
   delete result.gtin;
-  return result;
-}
+  delete result.expRaw;
+  delete result.prodDate;
+  delete result.packDate;
 
-function findNextAI(text, from, AIs) {
-  for (let j = from + 1; j < text.length; j++) {
-    for (const { ai } of AIs) {
-      if (text.startsWith(ai, j)) return j;
-    }
-  }
-  return text.length;
+  return result;
 }
 
 function normalize(obj) {
