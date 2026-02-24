@@ -1408,7 +1408,12 @@ function parseQRData(text) {
     return normalize(parsed);
   } catch {}
 
-  // Try key=value pairs (common GS1/datamatrix)
+  // Try GS1 DataMatrix / GS1-128 (common in pharma)
+  // Application Identifiers: 01=GTIN, 10=LOT, 17=EXP, 21=SN
+  const gs1 = parseGS1(text);
+  if (gs1.lot || gs1.sn || gs1.exp) return gs1;
+
+  // Try key=value pairs
   const product = {};
   const patterns = {
     ref: /(?:REF|ref)[:\s=]+([A-Za-z0-9]+)/i,
@@ -1423,13 +1428,66 @@ function parseQRData(text) {
     if (m) { product[key] = m[1]; found = true; }
   });
 
-  // If no structured data, treat whole text as SN fallback
-  if (!found) {
-    const clean = text.trim().replace(/\s+/g, '');
-    product.sn = clean;
+  if (!found) product.sn = text.trim().replace(/\s+/g, '');
+  return product;
+}
+
+function parseGS1(text) {
+  const result = {};
+  // GS1 Application Identifiers
+  const AIs = [
+    { ai: '01', key: 'gtin',  len: 14, fixed: true  },
+    { ai: '17', key: 'exp',   len: 6,  fixed: true  },
+    { ai: '10', key: 'lot',   len: null, fixed: false },
+    { ai: '21', key: 'sn',    len: null, fixed: false },
+  ];
+
+  let i = 0;
+  while (i < text.length) {
+    let matched = false;
+    for (const { ai, key, len, fixed } of AIs) {
+      if (text.startsWith(ai, i)) {
+        i += ai.length;
+        if (fixed && len) {
+          result[key] = text.substr(i, len);
+          i += len;
+        } else {
+          // Variable length — read until next known AI or end
+          const nextAI = findNextAI(text, i, AIs);
+          result[key] = text.substring(i, nextAI);
+          i = nextAI;
+        }
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) i++;
   }
 
-  return product;
+  // Convert GTIN to REF if possible (last 8 chars, strip leading zeros)
+  if (result.gtin && !result.ref) {
+    result.ref = result.gtin.replace(/^0+/, '');
+  }
+
+  // Convert EXP from YYMMDD to MM-YYYY
+  if (result.exp && result.exp.length === 6) {
+    const yy = result.exp.substr(0, 2);
+    const mm = result.exp.substr(2, 2);
+    const year = parseInt(yy) > 50 ? '19' + yy : '20' + yy;
+    result.exp = mm + '-' + year;
+  }
+
+  delete result.gtin;
+  return result;
+}
+
+function findNextAI(text, from, AIs) {
+  for (let j = from + 1; j < text.length; j++) {
+    for (const { ai } of AIs) {
+      if (text.startsWith(ai, j)) return j;
+    }
+  }
+  return text.length;
 }
 
 function normalize(obj) {
@@ -1568,7 +1626,31 @@ function showPreview(product) {
   document.getElementById('p-psu').value = product.psu || '';
   document.getElementById('p-lot').value = product.lot || '';
   document.getElementById('p-exp').value = product.exp || '';
-  document.getElementById('preview-card').classList.add('show');
+
+  // Highlight empty required fields
+  ['p-sn', 'p-exp'].forEach(id => {
+    const input = document.getElementById(id);
+    input.style.borderBottom = input.value ? '' : '2px solid var(--yellow)';
+    input.style.color = input.value ? '' : 'var(--yellow)';
+  });
+
+  // Show hint if fields are missing
+  const missing = [];
+  if (!product.sn) missing.push('SN');
+  if (!product.exp) missing.push('EXP');
+  if (!product.lot) missing.push('LOT');
+
+  const card = document.getElementById('preview-card');
+  card.classList.add('show');
+
+  // Update title with hint
+  const title = card.querySelector('.preview-title');
+  if (missing.length > 0) {
+    title.innerHTML = `📋 Complete missing fields: <span style="color:var(--yellow)">${missing.join(', ')}</span>`;
+  } else {
+    title.innerHTML = '📋 Confirm Extracted Data';
+  }
+
   hideValidationBanner();
 }
 
