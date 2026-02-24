@@ -548,6 +548,7 @@
   }
 
   .scan-item.authorized { border-left: 3px solid var(--green); }
+  .scan-item.scanned { border-left: 3px solid var(--accent); }
   .scan-item.duplicate { border-left: 3px solid var(--yellow); }
   .scan-item.unauthorized { border-left: 3px solid var(--red); }
   .scan-item.expired { border-left: 3px solid var(--orange); }
@@ -563,6 +564,7 @@
     flex-shrink: 0;
   }
   .scan-item.authorized .scan-item-status { background: rgba(0,229,160,0.15); }
+  .scan-item.scanned .scan-item-status { background: rgba(0,212,255,0.15); }
   .scan-item.duplicate .scan-item-status { background: rgba(255,211,42,0.15); }
   .scan-item.unauthorized .scan-item-status { background: rgba(255,71,87,0.15); }
   .scan-item.expired .scan-item-status { background: rgba(255,107,53,0.15); }
@@ -630,6 +632,7 @@
     white-space: nowrap;
   }
   .status-badge.authorized { background: rgba(0,229,160,0.15); color: var(--green); }
+  .status-badge.scanned { background: rgba(0,212,255,0.15); color: var(--accent); }
   .status-badge.duplicate { background: rgba(255,211,42,0.15); color: var(--yellow); }
   .status-badge.unauthorized { background: rgba(255,71,87,0.15); color: var(--red); }
   .status-badge.expired { background: rgba(255,107,53,0.15); color: var(--orange); }
@@ -867,16 +870,35 @@
       <input type="date" id="visit-date">
     </div>
 
-    <p class="section-label" style="margin-top: 8px;">IWRS Master List</p>
-    <div class="alert-strip">
-      <span>ℹ</span>
-      <span>Upload the IWRS export file (.xlsx or .csv). The system will use it to validate each scanned product in real time.</span>
+    <p class="section-label" style="margin-top: 8px;">Mode</p>
+
+    <div style="display:flex; gap:8px; margin-bottom:14px;">
+      <button id="mode-reconcile" onclick="setMode('reconcile')" style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:var(--bg); font-family:var(--font-mono); font-size:13px; cursor:pointer; font-weight:600;">
+        ✓ Reconciliation
+      </button>
+      <button id="mode-inventory" onclick="setMode('inventory')" style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text-muted); font-family:var(--font-mono); font-size:13px; cursor:pointer;">
+        📦 Free Inventory
+      </button>
     </div>
-    <div class="upload-zone" id="upload-zone">
-      <input type="file" id="iwrs-file" accept=".xlsx,.csv,.xls" onchange="handleIWRSUpload(event)">
-      <div class="upload-icon">📂</div>
-      <div class="upload-label" id="upload-label">Upload IWRS File</div>
-      <div class="upload-hint" id="upload-hint">Tap to select · .xlsx or .csv</div>
+
+    <div id="iwrs-section">
+      <div class="alert-strip">
+        <span>ℹ</span>
+        <span>Upload the IWRS export file (.xlsx or .csv). The system will validate each scanned product in real time.</span>
+      </div>
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="iwrs-file" accept=".xlsx,.csv,.xls" onchange="handleIWRSUpload(event)">
+        <div class="upload-icon">📂</div>
+        <div class="upload-label" id="upload-label">Upload IWRS File</div>
+        <div class="upload-hint" id="upload-hint">Tap to select · .xlsx or .csv</div>
+      </div>
+    </div>
+
+    <div id="inventory-section" style="display:none;">
+      <div class="alert-strip" style="background:rgba(0,229,160,0.08); border-color:rgba(0,229,160,0.2); color:var(--green);">
+        <span>📦</span>
+        <span>Free Inventory mode — scan and list products freely. No IWRS validation. Duplicates and expired products are still flagged.</span>
+      </div>
     </div>
 
     <div style="margin-top: 24px;">
@@ -1141,6 +1163,7 @@
 // ─── STATE ──────────────────────────────────────────────────────────
 const state = {
   session: null,
+  mode: 'reconcile',    // 'reconcile' | 'inventory'
   scanned: [],          // array of product objects
   iwrs: new Map(),      // SN → row data (from IWRS file)
   iwrsRaw: [],          // raw array of IWRS rows
@@ -1157,18 +1180,41 @@ document.addEventListener('DOMContentLoaded', () => {
   const savedKey = sessionStorage.getItem('anthropic_key');
   if (savedKey) document.getElementById('api-key-input').value = savedKey;
 
-  // Enable start button when required fields are filled
   ['site-name', 'cra-name', 'visit-date'].forEach(id => {
     document.getElementById(id).addEventListener('input', checkSetupReady);
   });
+
+  // Init mode
+  setMode('reconcile');
 });
+
+function setMode(mode) {
+  state.mode = mode;
+  const isReconcile = mode === 'reconcile';
+
+  document.getElementById('mode-reconcile').style.background = isReconcile ? 'var(--accent)' : 'var(--surface)';
+  document.getElementById('mode-reconcile').style.color = isReconcile ? 'var(--bg)' : 'var(--text-muted)';
+  document.getElementById('mode-reconcile').style.borderColor = isReconcile ? 'var(--accent)' : 'var(--border)';
+  document.getElementById('mode-reconcile').style.fontWeight = isReconcile ? '600' : 'normal';
+
+  document.getElementById('mode-inventory').style.background = !isReconcile ? 'var(--green)' : 'var(--surface)';
+  document.getElementById('mode-inventory').style.color = !isReconcile ? 'var(--bg)' : 'var(--text-muted)';
+  document.getElementById('mode-inventory').style.borderColor = !isReconcile ? 'var(--green)' : 'var(--border)';
+  document.getElementById('mode-inventory').style.fontWeight = !isReconcile ? '600' : 'normal';
+
+  document.getElementById('iwrs-section').style.display = isReconcile ? 'block' : 'none';
+  document.getElementById('inventory-section').style.display = isReconcile ? 'none' : 'block';
+
+  checkSetupReady();
+}
 
 function checkSetupReady() {
   const site = document.getElementById('site-name').value.trim();
   const cra = document.getElementById('cra-name').value.trim();
   const date = document.getElementById('visit-date').value;
   const iwrsLoaded = state.iwrs.size > 0;
-  document.getElementById('start-scan-btn').disabled = !(site && cra && date && iwrsLoaded);
+  const ready = site && cra && date && (state.mode === 'inventory' || iwrsLoaded);
+  document.getElementById('start-scan-btn').disabled = !ready;
 }
 
 // ─── SCREEN NAVIGATION ───────────────────────────────────────────────
@@ -1267,7 +1313,7 @@ function startSession() {
   const cra = document.getElementById('cra-name').value.trim();
   const date = document.getElementById('visit-date').value;
 
-  state.session = { site, protocol, cra, date };
+  state.session = { site, protocol, cra, date, mode: state.mode };
   state.scanned = [];
 
   // Update info bar
@@ -1292,6 +1338,8 @@ function newSession() {
   state.iwrs.clear();
   state.iwrsRaw = [];
   state.session = null;
+  state.mode = 'reconcile';
+  setMode('reconcile');
 
   document.getElementById('upload-zone').classList.remove('loaded');
   document.getElementById('upload-label').textContent = 'Upload IWRS File';
@@ -1723,12 +1771,14 @@ function validateProduct(product) {
   const prevScanned = state.scanned.find(p => p.sn === sn);
   if (prevScanned) return 'duplicate';
 
-  // Check if authorized
+  // In inventory mode — only check expiration
+  if (state.mode === 'inventory') {
+    return isExpired(product.exp) ? 'expired' : 'scanned';
+  }
+
+  // Reconciliation mode — full validation
   const inIWRS = state.iwrs.has(sn);
-
-  // Check expiration
   const expired = isExpired(product.exp);
-
   if (expired) return 'expired';
   if (!inIWRS) return 'unauthorized';
   return 'authorized';
@@ -1751,13 +1801,20 @@ function isExpired(expStr) {
 function updateStats() {
   const counts = { total: state.scanned.length, authorized: 0, duplicate: 0, unauthorized: 0, expired: 0 };
   state.scanned.forEach(p => {
-    if (counts[p.status] !== undefined) counts[p.status]++;
+    if (p.status === 'scanned') counts.authorized++; // count scanned as "ok" in inventory mode
+    else if (counts[p.status] !== undefined) counts[p.status]++;
   });
   document.getElementById('stat-total').textContent = counts.total;
   document.getElementById('stat-ok').textContent = counts.authorized;
   document.getElementById('stat-dup').textContent = counts.duplicate;
   document.getElementById('stat-unauth').textContent = counts.unauthorized;
   document.getElementById('stat-exp').textContent = counts.expired;
+
+  // Relabel AUTH chip based on mode
+  document.querySelector('.stat-chip.ok .stat-lbl').textContent =
+    state.mode === 'inventory' ? 'Listed' : 'Auth';
+  document.querySelector('.stat-chip.unauth .stat-lbl').textContent =
+    state.mode === 'inventory' ? '—' : 'Unauth';
 }
 
 function updateProgress() {
@@ -1769,6 +1826,7 @@ function updateProgress() {
 
 const STATUS_INFO = {
   authorized:   { icon: '✓', label: 'Authorized' },
+  scanned:      { icon: '●', label: 'Scanned' },
   duplicate:    { icon: '⚠', label: 'Duplicate' },
   unauthorized: { icon: '✕', label: 'Unauthorized' },
   expired:      { icon: '!', label: 'Expired' },
@@ -1810,6 +1868,7 @@ function showValidationBanner(status, product) {
   const banner = document.getElementById('validation-banner');
   const msgs = {
     authorized:   `✓ Authorized — SN ${product.sn} confirmed in IWRS`,
+    scanned:      `● Listed — SN ${product.sn} added to inventory`,
     duplicate:    `⚠ Duplicate — SN ${product.sn} was already scanned`,
     unauthorized: `✕ Unauthorized — SN ${product.sn} not found in IWRS`,
     expired:      `! Expired — Product expired ${product.exp}`,
@@ -1852,6 +1911,12 @@ function buildSummary() {
       <td><span class="status-badge ${p.status}">${STATUS_INFO[p.status]?.label || p.status}</span></td>
     </tr>
   `).join('');
+
+  // Missing section only relevant in reconciliation mode
+  if (state.mode === 'inventory') {
+    document.getElementById('missing-section').style.display = 'none';
+    return;
+  }
 
   // Missing (in IWRS but not scanned)
   const scannedSNs = new Set(state.scanned.map(p => p.sn));
