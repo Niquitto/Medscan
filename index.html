@@ -3,26 +3,8 @@
 <head>
 <!--
 ==========================================================================
-  MedScan Reconciliation PWA
-  Version: 1.0.0
-  
-  SETUP INSTRUCTIONS:
-  1. Open this file in any modern browser (Chrome/Safari/Firefox)
-  2. On first launch, go to Settings (gear icon) and enter your 
-     Anthropic API key (only needed for OCR fallback)
-  3. For camera access, serve via HTTPS or localhost
-     Quick option: python3 -m http.server 8080 → open localhost:8080
-  4. On mobile: share the file to your phone or host it on any 
-     static hosting (Netlify Drop, GitHub Pages, etc.)
-  
-  LIBRARIES USED (loaded from CDN):
-  - ZXing-js (QR/barcode decoding)
-  - SheetJS xlsx.js (Excel parsing & export)
-  
-  DATA PRIVACY:
-  - All data processed locally in the browser
-  - No data sent to any server except Claude API for OCR (if used)
-  - API key stored in sessionStorage only (cleared on tab close)
+  MedScan v2.0 — Clinical Medication Reconciliation PWA
+  NEW: Pharmacy Inventory screen (R26 + R28 + optional R27)
 ==========================================================================
 -->
 <meta charset="UTF-8">
@@ -69,776 +51,300 @@
   body::before {
     content: '';
     position: fixed;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
+    top: -50%; left: -50%; width: 200%; height: 200%;
     background: radial-gradient(ellipse at 30% 20%, rgba(0,212,255,0.05) 0%, transparent 50%),
                 radial-gradient(ellipse at 70% 80%, rgba(0,153,204,0.04) 0%, transparent 50%);
-    pointer-events: none;
-    z-index: 0;
+    pointer-events: none; z-index: 0;
   }
 
   /* ─── SCREENS ─────────────────────────────────────────────── */
-  .screen {
-    display: none;
-    flex-direction: column;
-    min-height: 100vh;
-    position: relative;
-    z-index: 1;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
+  .screen { display: none; flex-direction: column; min-height: 100vh; position: relative; z-index: 1; padding-bottom: env(safe-area-inset-bottom); }
   .screen.active { display: flex; }
 
   /* ─── HEADER ──────────────────────────────────────────────── */
   .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 20px;
-    padding-top: calc(16px + env(safe-area-inset-top));
-    background: rgba(10,22,40,0.9);
-    backdrop-filter: blur(12px);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; padding-top: calc(16px + env(safe-area-inset-top));
+    background: rgba(10,22,40,0.9); backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    position: sticky; top: 0; z-index: 100;
   }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
+  .logo { display: flex; align-items: center; gap: 10px; }
   .logo-mark {
-    width: 32px;
-    height: 32px;
-    background: var(--accent);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-display);
-    font-weight: 800;
-    font-size: 14px;
-    color: var(--bg);
-    letter-spacing: -0.5px;
+    width: 32px; height: 32px; background: var(--accent); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 800; font-size: 14px; color: var(--bg);
   }
-
-  .logo-text {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 18px;
-    letter-spacing: -0.3px;
-    color: var(--text);
-  }
-
+  .logo-text { font-family: var(--font-display); font-weight: 700; font-size: 18px; letter-spacing: -0.3px; }
   .logo-text span { color: var(--accent); }
-
   .header-actions { display: flex; gap: 8px; }
-
   .icon-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--surface);
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 18px;
+    width: 40px; height: 40px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.2s; font-size: 18px;
   }
   .icon-btn:hover, .icon-btn:active { background: var(--surface2); color: var(--accent); border-color: var(--accent); }
 
   /* ─── CONTENT ─────────────────────────────────────────────── */
-  .content {
-    flex: 1;
-    padding: 24px 20px;
-    max-width: 480px;
-    margin: 0 auto;
-    width: 100%;
-  }
+  .content { flex: 1; padding: 24px 20px; max-width: 480px; margin: 0 auto; width: 100%; }
+  .screen-title { font-family: var(--font-display); font-weight: 800; font-size: 28px; letter-spacing: -0.5px; margin-bottom: 4px; line-height: 1.1; }
+  .screen-subtitle { color: var(--text-muted); font-size: 13px; margin-bottom: 28px; }
+  .section-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; font-weight: 500; }
 
-  /* ─── TYPOGRAPHY ──────────────────────────────────────────── */
-  .screen-title {
-    font-family: var(--font-display);
-    font-weight: 800;
-    font-size: 28px;
-    letter-spacing: -0.5px;
-    margin-bottom: 4px;
-    line-height: 1.1;
+  /* ─── HOME MENU ───────────────────────────────────────────── */
+  .menu-grid { display: flex; flex-direction: column; gap: 14px; margin-top: 8px; }
+  .menu-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 16px;
   }
-
-  .screen-subtitle {
-    color: var(--text-muted);
-    font-size: 13px;
-    margin-bottom: 28px;
+  .menu-card:active { border-color: var(--accent); background: var(--surface2); transform: scale(0.99); }
+  .menu-card-icon {
+    width: 52px; height: 52px; border-radius: 12px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 24px;
   }
-
-  .section-label {
-    font-size: 10px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin-bottom: 12px;
-    font-weight: 500;
-  }
+  .menu-card-icon.blue  { background: rgba(0,212,255,0.12); }
+  .menu-card-icon.green { background: rgba(0,229,160,0.12); }
+  .menu-card-body { flex: 1; }
+  .menu-card-body h3 { font-family: var(--font-display); font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .menu-card-body p { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+  .menu-card-arrow { color: var(--text-muted); font-size: 20px; flex-shrink: 0; }
 
   /* ─── FORM ELEMENTS ───────────────────────────────────────── */
-  .field {
-    margin-bottom: 16px;
-  }
-
-  .field label {
-    display: block;
-    font-size: 11px;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-  }
-
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
   .field input, .field select {
-    width: 100%;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 15px;
-    padding: 14px 16px;
-    transition: all 0.2s;
-    outline: none;
-    -webkit-appearance: none;
+    width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text); font-family: var(--font-mono); font-size: 15px; padding: 14px 16px;
+    transition: all 0.2s; outline: none; -webkit-appearance: none;
   }
-
-  .field input:focus, .field select:focus {
-    border-color: var(--accent);
-    background: var(--surface2);
-    box-shadow: 0 0 0 3px rgba(0,212,255,0.1);
-  }
-
+  .field input:focus, .field select:focus { border-color: var(--accent); background: var(--surface2); box-shadow: 0 0 0 3px rgba(0,212,255,0.1); }
   .field input::placeholder { color: var(--text-muted); opacity: 0.5; }
 
   /* ─── FILE UPLOAD ─────────────────────────────────────────── */
   .upload-zone {
-    border: 2px dashed var(--border);
-    border-radius: var(--radius);
-    padding: 28px 20px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
-    background: var(--surface);
+    border: 2px dashed var(--border); border-radius: var(--radius); padding: 28px 20px;
+    text-align: center; cursor: pointer; transition: all 0.2s; position: relative; background: var(--surface);
   }
-  .upload-zone:hover, .upload-zone.dragover {
-    border-color: var(--accent);
-    background: rgba(0,212,255,0.05);
-  }
-  .upload-zone input {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    cursor: pointer;
-    z-index: 10;
-  }
-  .upload-zone .upload-icon { font-size: 32px; margin-bottom: 10px; }
-  .upload-zone .upload-label {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 15px;
-    margin-bottom: 4px;
-  }
-  .upload-zone .upload-hint { font-size: 12px; color: var(--text-muted); }
+  .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: rgba(0,212,255,0.05); }
+  .upload-zone input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
+  .upload-zone .upload-icon { font-size: 28px; margin-bottom: 8px; }
+  .upload-zone .upload-label { font-family: var(--font-display); font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .upload-zone .upload-hint { font-size: 11px; color: var(--text-muted); }
   .upload-zone.loaded { border-color: var(--green); border-style: solid; }
-  .upload-zone.loaded .upload-icon::after { content: '✓'; }
+  .upload-zone.optional { border-color: rgba(107,140,186,0.4); }
+  .upload-zone.optional .upload-label { color: var(--text-muted); }
 
   /* ─── BUTTONS ─────────────────────────────────────────────── */
   .btn {
-    width: 100%;
-    padding: 16px;
-    border-radius: var(--radius);
-    border: none;
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 16px;
-    letter-spacing: 0.3px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 54px;
+    width: 100%; padding: 16px; border-radius: var(--radius); border: none;
+    font-family: var(--font-display); font-weight: 700; font-size: 16px; letter-spacing: 0.3px;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 54px;
   }
-
-  .btn-primary {
-    background: var(--accent);
-    color: var(--bg);
-  }
+  .btn-primary { background: var(--accent); color: var(--bg); }
   .btn-primary:hover { background: #00eeff; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,212,255,0.3); }
   .btn-primary:active { transform: translateY(0); }
-
-  .btn-secondary {
-    background: var(--surface);
-    color: var(--text);
-    border: 1px solid var(--border);
-  }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+  .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
   .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
-
-  .btn-danger {
-    background: rgba(255,71,87,0.15);
-    color: var(--red);
-    border: 1px solid rgba(255,71,87,0.3);
-  }
-
-  .btn-success {
-    background: var(--green);
-    color: var(--bg);
-  }
+  .btn-danger { background: rgba(255,71,87,0.15); color: var(--red); border: 1px solid rgba(255,71,87,0.3); }
+  .btn-success { background: var(--green); color: var(--bg); }
   .btn-success:hover { background: #00ffb3; }
-
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
-
   .btn-row { display: flex; gap: 10px; margin-top: 8px; }
   .btn-row .btn { flex: 1; }
 
   /* ─── STATS STRIP ─────────────────────────────────────────── */
-  .stats-strip {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 6px;
-    margin: 16px 0;
-    padding: 0 20px;
-  }
-
-  .stat-chip {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 8px 6px;
-    text-align: center;
-  }
-
-  .stat-chip .stat-val {
-    font-family: var(--font-display);
-    font-weight: 800;
-    font-size: 20px;
-    line-height: 1;
-    margin-bottom: 2px;
-  }
-
-  .stat-chip .stat-lbl {
-    font-size: 8px;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    color: var(--text-muted);
-  }
-
-  .stat-chip.ok .stat-val { color: var(--green); }
-  .stat-chip.dup .stat-val { color: var(--yellow); }
-  .stat-chip.unauth .stat-val { color: var(--red); }
-  .stat-chip.exp .stat-val { color: var(--orange); }
+  .stats-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 16px 0; padding: 0 20px; }
+  .stat-chip { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 6px; text-align: center; }
+  .stat-chip .stat-val { font-family: var(--font-display); font-weight: 800; font-size: 20px; line-height: 1; margin-bottom: 2px; }
+  .stat-chip .stat-lbl { font-size: 8px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted); }
+  .stat-chip.ok .stat-val    { color: var(--green); }
+  .stat-chip.dup .stat-val   { color: var(--yellow); }
+  .stat-chip.unauth .stat-val{ color: var(--red); }
+  .stat-chip.exp .stat-val   { color: var(--orange); }
   .stat-chip.total .stat-val { color: var(--accent); }
 
   /* ─── CAMERA SCREEN ───────────────────────────────────────── */
-  .camera-wrap {
-    position: relative;
-    background: #000;
-    border-radius: var(--radius);
-    overflow: hidden;
-    aspect-ratio: 4/3;
-    margin-bottom: 16px;
-  }
-
-  #video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-  .scan-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-  }
-
-  .scan-frame {
-    width: 65%;
-    aspect-ratio: 1;
-    position: relative;
-  }
-
-  .scan-frame::before, .scan-frame::after,
-  .scan-frame > span::before, .scan-frame > span::after {
-    content: '';
-    position: absolute;
-    width: 24px;
-    height: 24px;
-    border-color: var(--accent);
-    border-style: solid;
-  }
+  .camera-wrap { position: relative; background: #000; border-radius: var(--radius); overflow: hidden; aspect-ratio: 4/3; margin-bottom: 16px; }
+  #video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .scan-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+  .scan-frame { width: 65%; aspect-ratio: 1; position: relative; }
+  .scan-frame::before, .scan-frame::after, .scan-frame > span::before, .scan-frame > span::after { content: ''; position: absolute; width: 24px; height: 24px; border-color: var(--accent); border-style: solid; }
   .scan-frame::before { top: 0; left: 0; border-width: 3px 0 0 3px; }
-  .scan-frame::after { top: 0; right: 0; border-width: 3px 3px 0 0; }
+  .scan-frame::after  { top: 0; right: 0; border-width: 3px 3px 0 0; }
   .scan-frame > span::before { bottom: 0; left: 0; border-width: 0 0 3px 3px; }
-  .scan-frame > span::after { bottom: 0; right: 0; border-width: 0 3px 3px 0; }
-
-  .scan-line {
-    position: absolute;
-    left: 10%;
-    right: 10%;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--accent), transparent);
-    animation: scanline 2s ease-in-out infinite;
-    box-shadow: 0 0 8px var(--accent);
-  }
-
-  @keyframes scanline {
-    0% { top: 10%; opacity: 1; }
-    50% { top: 90%; opacity: 0.8; }
-    100% { top: 10%; opacity: 1; }
-  }
-
-  .scan-status {
-    position: absolute;
-    bottom: 12px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0,0,0,0.7);
-    backdrop-filter: blur(8px);
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 12px;
-    color: var(--accent);
-    white-space: nowrap;
-    border: 1px solid rgba(0,212,255,0.3);
-  }
+  .scan-frame > span::after  { bottom: 0; right: 0; border-width: 0 3px 3px 0; }
+  .scan-line { position: absolute; left: 10%; right: 10%; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); animation: scanline 2s ease-in-out infinite; box-shadow: 0 0 8px var(--accent); }
+  @keyframes scanline { 0% { top: 10%; opacity: 1; } 50% { top: 90%; opacity: 0.8; } 100% { top: 10%; opacity: 1; } }
+  .scan-status { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); padding: 6px 14px; border-radius: 20px; font-size: 12px; color: var(--accent); white-space: nowrap; border: 1px solid rgba(0,212,255,0.3); }
 
   /* ─── CAPTURE TABS ────────────────────────────────────────── */
-  .capture-tabs {
-    display: flex;
-    background: var(--surface);
-    border-radius: var(--radius-sm);
-    padding: 4px;
-    margin-bottom: 14px;
-    border: 1px solid var(--border);
-  }
-
-  .capture-tab {
-    flex: 1;
-    padding: 10px;
-    border-radius: 6px;
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .capture-tab.active {
-    background: var(--accent);
-    color: var(--bg);
-    font-weight: 500;
-  }
+  .capture-tabs { display: flex; background: var(--surface); border-radius: var(--radius-sm); padding: 4px; margin-bottom: 14px; border: 1px solid var(--border); }
+  .capture-tab { flex: 1; padding: 10px; border-radius: 6px; border: none; background: transparent; color: var(--text-muted); font-family: var(--font-mono); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+  .capture-tab.active { background: var(--accent); color: var(--bg); font-weight: 500; }
 
   /* ─── PREVIEW CARD ────────────────────────────────────────── */
-  .preview-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px;
-    margin-bottom: 16px;
-    display: none;
-  }
-
+  .preview-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; display: none; }
   .preview-card.show { display: block; }
-  .preview-card .preview-title {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 13px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin-bottom: 12px;
-  }
-
-  .preview-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-
-  .preview-field {
-    background: var(--surface2);
-    border-radius: var(--radius-sm);
-    padding: 10px 12px;
-  }
-
-  .preview-field .pf-label {
-    font-size: 9px;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin-bottom: 4px;
-  }
-
-  .preview-field input {
-    background: transparent;
-    border: none;
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 14px;
-    font-weight: 500;
-    width: 100%;
-    outline: none;
-    padding: 0;
-  }
+  .preview-card .preview-title { font-family: var(--font-display); font-weight: 700; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+  .preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .preview-field { background: var(--surface2); border-radius: var(--radius-sm); padding: 10px 12px; }
+  .preview-field .pf-label { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+  .preview-field input { background: transparent; border: none; color: var(--text); font-family: var(--font-mono); font-size: 14px; font-weight: 500; width: 100%; outline: none; padding: 0; }
 
   /* ─── VALIDATION BANNER ───────────────────────────────────── */
-  .validation-banner {
-    border-radius: var(--radius-sm);
-    padding: 12px 16px;
-    font-size: 13px;
-    font-weight: 500;
-    margin-bottom: 14px;
-    display: none;
-    align-items: center;
-    gap: 10px;
-  }
+  .validation-banner { border-radius: var(--radius-sm); padding: 12px 16px; font-size: 13px; font-weight: 500; margin-bottom: 14px; display: none; align-items: center; gap: 10px; }
   .validation-banner.show { display: flex; }
-  .validation-banner.authorized { background: rgba(0,229,160,0.15); border: 1px solid rgba(0,229,160,0.3); color: var(--green); }
-  .validation-banner.duplicate { background: rgba(255,211,42,0.15); border: 1px solid rgba(255,211,42,0.3); color: var(--yellow); }
-  .validation-banner.unauthorized { background: rgba(255,71,87,0.15); border: 1px solid rgba(255,71,87,0.3); color: var(--red); }
-  .validation-banner.expired { background: rgba(255,107,53,0.15); border: 1px solid rgba(255,107,53,0.3); color: var(--orange); }
+  .validation-banner.authorized  { background: rgba(0,229,160,0.15); border: 1px solid rgba(0,229,160,0.3); color: var(--green); }
+  .validation-banner.duplicate   { background: rgba(255,211,42,0.15); border: 1px solid rgba(255,211,42,0.3); color: var(--yellow); }
+  .validation-banner.unauthorized{ background: rgba(255,71,87,0.15); border: 1px solid rgba(255,71,87,0.3); color: var(--red); }
+  .validation-banner.expired     { background: rgba(255,107,53,0.15); border: 1px solid rgba(255,107,53,0.3); color: var(--orange); }
 
   /* ─── SCANNED LIST ────────────────────────────────────────── */
-  .scan-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .scan-item {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 12px 14px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    animation: slideIn 0.2s ease;
-  }
-
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateY(-8px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .scan-item.authorized { border-left: 3px solid var(--green); }
-  .scan-item.scanned { border-left: 3px solid var(--accent); }
-  .scan-item.duplicate { border-left: 3px solid var(--yellow); }
-  .scan-item.unauthorized { border-left: 3px solid var(--red); }
-  .scan-item.expired { border-left: 3px solid var(--orange); }
-
-  .scan-item-status {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    flex-shrink: 0;
-  }
-  .scan-item.authorized .scan-item-status { background: rgba(0,229,160,0.15); }
-  .scan-item.scanned .scan-item-status { background: rgba(0,212,255,0.15); }
-  .scan-item.duplicate .scan-item-status { background: rgba(255,211,42,0.15); }
-  .scan-item.unauthorized .scan-item-status { background: rgba(255,71,87,0.15); }
-  .scan-item.expired .scan-item-status { background: rgba(255,107,53,0.15); }
-
+  .scan-list { display: flex; flex-direction: column; gap: 8px; }
+  .scan-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; align-items: center; gap: 12px; animation: slideIn 0.2s ease; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+  .scan-item.authorized  { border-left: 3px solid var(--green); }
+  .scan-item.scanned     { border-left: 3px solid var(--accent); }
+  .scan-item.duplicate   { border-left: 3px solid var(--yellow); }
+  .scan-item.unauthorized{ border-left: 3px solid var(--red); }
+  .scan-item.expired     { border-left: 3px solid var(--orange); }
+  .scan-item-status { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+  .scan-item.authorized .scan-item-status  { background: rgba(0,229,160,0.15); }
+  .scan-item.scanned .scan-item-status     { background: rgba(0,212,255,0.15); }
+  .scan-item.duplicate .scan-item-status   { background: rgba(255,211,42,0.15); }
+  .scan-item.unauthorized .scan-item-status{ background: rgba(255,71,87,0.15); }
+  .scan-item.expired .scan-item-status     { background: rgba(255,107,53,0.15); }
   .scan-item-info { flex: 1; min-width: 0; }
-  .scan-item-sn {
-    font-weight: 500;
-    font-size: 14px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+  .scan-item-sn   { font-weight: 500; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .scan-item-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-
-  .scan-item-del {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 16px;
-    padding: 4px;
-    border-radius: 4px;
-    flex-shrink: 0;
-  }
+  .scan-item-del  { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; padding: 4px; border-radius: 4px; flex-shrink: 0; }
   .scan-item-del:hover { color: var(--red); }
 
   /* ─── SUMMARY TABLE ───────────────────────────────────────── */
-  .summary-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-    margin-bottom: 20px;
-  }
+  .summary-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px; }
+  .summary-table th { text-align: left; padding: 8px 10px; font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+  .summary-table td { padding: 10px 10px; border-bottom: 1px solid rgba(30,48,85,0.5); vertical-align: middle; }
+  .summary-table tr.authorized  td { border-left: 2px solid var(--green); }
+  .summary-table tr.duplicate   td { border-left: 2px solid var(--yellow); background: rgba(255,211,42,0.03); }
+  .summary-table tr.unauthorized td{ border-left: 2px solid var(--red); background: rgba(255,71,87,0.03); }
+  .summary-table tr.expired     td { border-left: 2px solid var(--orange); background: rgba(255,107,53,0.05); }
+  .summary-table tr.missing     td { border-left: 2px solid var(--gray); background: rgba(74,98,128,0.05); color: var(--text-muted); }
 
-  .summary-table th {
-    text-align: left;
-    padding: 8px 10px;
-    font-size: 9px;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .summary-table td {
-    padding: 10px 10px;
-    border-bottom: 1px solid rgba(30,48,85,0.5);
-    vertical-align: middle;
-  }
-
-  .summary-table tr.authorized td { border-left: 2px solid var(--green); }
-  .summary-table tr.duplicate td { border-left: 2px solid var(--yellow); background: rgba(255,211,42,0.03); }
-  .summary-table tr.unauthorized td { border-left: 2px solid var(--red); background: rgba(255,71,87,0.03); }
-  .summary-table tr.expired td { border-left: 2px solid var(--orange); background: rgba(255,107,53,0.05); }
-  .summary-table tr.missing td { border-left: 2px solid var(--gray); background: rgba(74,98,128,0.05); color: var(--text-muted); }
-
-  .status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 10px;
-    font-weight: 500;
-    white-space: nowrap;
-  }
-  .status-badge.authorized { background: rgba(0,229,160,0.15); color: var(--green); }
-  .status-badge.scanned { background: rgba(0,212,255,0.15); color: var(--accent); }
-  .status-badge.duplicate { background: rgba(255,211,42,0.15); color: var(--yellow); }
+  .status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 500; white-space: nowrap; }
+  .status-badge.authorized   { background: rgba(0,229,160,0.15); color: var(--green); }
+  .status-badge.scanned      { background: rgba(0,212,255,0.15); color: var(--accent); }
+  .status-badge.duplicate    { background: rgba(255,211,42,0.15); color: var(--yellow); }
   .status-badge.unauthorized { background: rgba(255,71,87,0.15); color: var(--red); }
-  .status-badge.expired { background: rgba(255,107,53,0.15); color: var(--orange); }
-  .status-badge.missing { background: rgba(74,98,128,0.15); color: var(--gray); }
+  .status-badge.expired      { background: rgba(255,107,53,0.15); color: var(--orange); }
+  .status-badge.missing      { background: rgba(74,98,128,0.15); color: var(--gray); }
+
+  /* ─── PHARMACY INVENTORY ──────────────────────────────────── */
+
+  /* Summary grid */
+  .pharm-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+  .pharm-stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 8px; text-align: center; }
+  .pharm-stat .pn { font-family: var(--font-display); font-weight: 800; font-size: 30px; line-height: 1; margin-bottom: 4px; }
+  .pharm-stat .pl { font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted); line-height: 1.3; }
+  .pharm-stat.s-green  .pn { color: var(--green); }
+  .pharm-stat.s-yellow .pn { color: var(--yellow); }
+  .pharm-stat.s-red    .pn { color: var(--red); }
+
+  /* Filter pills */
+  .filter-bar { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 16px; scrollbar-width: none; }
+  .filter-bar::-webkit-scrollbar { display: none; }
+  .filter-pill {
+    flex-shrink: 0; padding: 7px 14px; border-radius: 20px; font-size: 12px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
+    font-family: var(--font-mono); cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .filter-pill.active          { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+  .filter-pill.p-green.active  { background: var(--green); border-color: var(--green); color: var(--bg); }
+  .filter-pill.p-yellow.active { background: var(--yellow); border-color: var(--yellow); color: var(--bg); }
+  .filter-pill.p-red.active    { background: var(--red); border-color: var(--red); color: #fff; }
+
+  /* Kit cards */
+  .kit-card {
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid transparent;
+    border-radius: var(--radius-sm); padding: 14px; margin-bottom: 10px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .kit-card:active { transform: scale(0.99); }
+  .kit-card.k-green  { border-left-color: var(--green); }
+  .kit-card.k-yellow { border-left-color: var(--yellow); }
+  .kit-card.k-red    { border-left-color: var(--red); }
+
+  .kit-card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .kit-num { font-family: var(--font-display); font-weight: 700; font-size: 15px; }
+  .kit-ip  { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+
+  .kit-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 12px; margin-bottom: 8px; }
+  .kit-meta-field { font-size: 11px; color: var(--text-muted); }
+  .kit-meta-field b { color: var(--text); font-weight: 500; }
+
+  .kit-status-row { display: flex; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .status-dot.d-green  { background: var(--green);  box-shadow: 0 0 6px rgba(0,229,160,0.6); }
+  .status-dot.d-yellow { background: var(--yellow); box-shadow: 0 0 6px rgba(255,211,42,0.6); }
+  .status-dot.d-red    { background: var(--red);    box-shadow: 0 0 6px rgba(255,71,87,0.6); }
+  .status-text { font-size: 11px; flex: 1; }
+  .status-text.t-green  { color: var(--green); }
+  .status-text.t-yellow { color: var(--yellow); }
+  .status-text.t-red    { color: var(--red); }
+  .kit-next { font-size: 10px; color: var(--text-muted); text-align: right; line-height: 1.4; }
+
+  /* Detail modal */
+  .detail-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-lbl { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; margin-right: 12px; }
+  .detail-val { text-align: right; font-weight: 500; word-break: break-word; max-width: 60%; }
+
+  /* ─── ALERT STRIP ─────────────────────────────────────────── */
+  .alert-strip { background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; color: var(--accent); margin-bottom: 16px; display: flex; gap: 8px; align-items: flex-start; line-height: 1.5; }
 
   /* ─── LOADING ─────────────────────────────────────────────── */
-  .loading-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(10,22,40,0.85);
-    backdrop-filter: blur(8px);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    display: none;
-  }
+  .loading-overlay { position: fixed; inset: 0; background: rgba(10,22,40,0.85); backdrop-filter: blur(8px); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
   .loading-overlay.show { display: flex; }
-
-  .spinner {
-    width: 48px;
-    height: 48px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin-bottom: 16px;
-  }
+  .spinner { width: 48px; height: 48px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-
-  .loading-msg {
-    font-size: 14px;
-    color: var(--text-muted);
-  }
+  .loading-msg { font-size: 14px; color: var(--text-muted); }
 
   /* ─── TOAST ───────────────────────────────────────────────── */
-  .toast {
-    position: fixed;
-    bottom: calc(24px + env(safe-area-inset-bottom));
-    left: 50%;
-    transform: translateX(-50%) translateY(100px);
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    padding: 12px 20px;
-    font-size: 14px;
-    z-index: 2000;
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    white-space: nowrap;
-    max-width: 90vw;
-    text-align: center;
-  }
+  .toast { position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%) translateY(100px); background: var(--surface2); border: 1px solid var(--border); border-radius: 24px; padding: 12px 20px; font-size: 14px; z-index: 2000; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); white-space: nowrap; max-width: 90vw; text-align: center; }
   .toast.show { transform: translateX(-50%) translateY(0); }
 
   /* ─── SETTINGS ────────────────────────────────────────────── */
-  .settings-section {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px;
-    margin-bottom: 16px;
-  }
+  .settings-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .settings-section h3 { font-family: var(--font-display); font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .settings-section p { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5; }
 
-  .settings-section h3 {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 14px;
-    margin-bottom: 4px;
-  }
-
-  .settings-section p {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-bottom: 16px;
-    line-height: 1.5;
-  }
-
-  /* ─── PROGRESS BAR ────────────────────────────────────────── */
-  .progress-wrap {
-    background: var(--surface);
-    border-radius: 4px;
-    height: 4px;
-    overflow: hidden;
-    margin: 8px 20px;
-  }
-  .progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent2), var(--accent));
-    border-radius: 4px;
-    transition: width 0.4s ease;
-    width: 0%;
-  }
-
-  /* ─── EMPTY STATE ─────────────────────────────────────────── */
-  .empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--text-muted);
-  }
+  /* ─── MISC ────────────────────────────────────────────────── */
+  .progress-wrap { background: var(--surface); border-radius: 4px; height: 4px; overflow: hidden; margin: 8px 20px; }
+  .progress-bar  { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); border-radius: 4px; transition: width 0.4s ease; width: 0%; }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
   .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
   .empty-state p { font-size: 13px; line-height: 1.6; }
-
-  /* ─── SESSION INFO CHIP ───────────────────────────────────── */
-  .session-info-bar {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 8px 20px;
-    display: flex;
-    gap: 16px;
-    font-size: 11px;
-    color: var(--text-muted);
-    overflow-x: auto;
-    white-space: nowrap;
-  }
+  .session-info-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 20px; display: flex; gap: 16px; font-size: 11px; color: var(--text-muted); overflow-x: auto; white-space: nowrap; }
   .session-info-bar span b { color: var(--text); }
+  .manual-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .missing-count { display: inline-flex; align-items: center; gap: 6px; background: rgba(74,98,128,0.15); border: 1px solid var(--gray); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
 
-  /* ─── MANUAL ENTRY ────────────────────────────────────────── */
-  .manual-form {
-    display: none;
-  }
-  .manual-form.show { display: block; }
-  .manual-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-
-  /* ─── ALERT STRIP ─────────────────────────────────────────── */
-  .alert-strip {
-    background: rgba(0,212,255,0.08);
-    border: 1px solid rgba(0,212,255,0.2);
-    border-radius: var(--radius-sm);
-    padding: 10px 14px;
-    font-size: 12px;
-    color: var(--accent);
-    margin-bottom: 16px;
-    display: flex;
-    gap: 8px;
-    align-items: flex-start;
-    line-height: 1.5;
-  }
-
-  /* scrollable list area */
-  .scan-list-wrap {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0 20px 20px;
-  }
-
-  /* ─── MISSING TABLE ───────────────────────────────────────── */
-  .missing-count {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(74,98,128,0.15);
-    border: 1px solid var(--gray);
-    border-radius: 20px;
-    padding: 4px 12px;
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-bottom: 16px;
-  }
+  /* ─── MODAL ───────────────────────────────────────────────── */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; display: none; align-items: flex-end; backdrop-filter: blur(4px); }
+  .modal-backdrop.show { display: flex; }
+  .modal { width: 100%; max-height: 90vh; overflow-y: auto; background: var(--surface); border-radius: 20px 20px 0 0; padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); animation: slideUp 0.25s ease; }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+  .modal-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; margin-bottom: 16px; }
 </style>
 </head>
 <body>
 
 <!-- ═══════════════════════════════════════════════════════
-     SCREEN 1: SETTINGS
+     SCREEN: HOME
 ═══════════════════════════════════════════════════════ -->
-<div class="screen" id="screen-settings">
-  <div class="header">
-    <div class="logo">
-      <div class="logo-mark">M</div>
-      <div class="logo-text">Med<span>Scan</span></div>
-    </div>
-    <div class="header-actions">
-      <button class="icon-btn" onclick="showScreen('screen-setup')" title="Back">✕</button>
-    </div>
-  </div>
-  <div class="content">
-    <p class="screen-title">Settings</p>
-    <p class="screen-subtitle">Configure your scanning preferences</p>
-
-    <div class="settings-section">
-      <h3>🔑 Anthropic API Key</h3>
-      <p>Required only for OCR fallback when QR codes are unreadable. Stored in sessionStorage only — cleared when you close the tab.</p>
-      <div class="field">
-        <label>API Key</label>
-        <input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off">
-      </div>
-      <button class="btn btn-primary" onclick="saveApiKey()">Save Key</button>
-    </div>
-
-    <div class="settings-section">
-      <h3>📋 About MedScan</h3>
-      <p>Version 1.0.0 — Clinical medication reconciliation tool for CRAs. All data is processed locally in your browser. No patient data is transmitted to external servers (except Claude API for OCR, if used).</p>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════
-     SCREEN 2: SESSION SETUP
-═══════════════════════════════════════════════════════ -->
-<div class="screen active" id="screen-setup">
+<div class="screen active" id="screen-home">
   <div class="header">
     <div class="logo">
       <div class="logo-mark">M</div>
@@ -849,43 +355,83 @@
     </div>
   </div>
   <div class="content">
+    <p class="screen-title">Clinical<br>Tools</p>
+    <p class="screen-subtitle">Select a workflow to begin</p>
+    <div class="menu-grid">
+      <div class="menu-card" onclick="showScreen('screen-setup')">
+        <div class="menu-card-icon blue">📷</div>
+        <div class="menu-card-body">
+          <h3>Kit Scanning</h3>
+          <p>Scan and validate medication labels against the IWRS master list in real time.</p>
+        </div>
+        <span class="menu-card-arrow">›</span>
+      </div>
+      <div class="menu-card" onclick="showScreen('screen-pharmacy')">
+        <div class="menu-card-icon green">🧊</div>
+        <div class="menu-card-body">
+          <h3>Pharmacy Inventory</h3>
+          <p>Identify which kits should be in the pharmacy or fridge based on IWRS reports.</p>
+        </div>
+        <span class="menu-card-arrow">›</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: SETTINGS
+═══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-settings">
+  <div class="header">
+    <div class="logo"><div class="logo-mark">M</div><div class="logo-text">Med<span>Scan</span></div></div>
+    <div class="header-actions">
+      <button class="icon-btn" onclick="history.back ? goBack() : showScreen('screen-home')">✕</button>
+    </div>
+  </div>
+  <div class="content">
+    <p class="screen-title">Settings</p>
+    <p class="screen-subtitle">Configure your scanning preferences</p>
+    <div class="settings-section">
+      <h3>🔑 Anthropic API Key</h3>
+      <p>Required only for OCR fallback when QR codes are unreadable. Stored in sessionStorage only — cleared when you close the tab.</p>
+      <div class="field"><label>API Key</label><input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off"></div>
+      <button class="btn btn-primary" onclick="saveApiKey()">Save Key</button>
+    </div>
+    <div class="settings-section">
+      <h3>📋 About MedScan</h3>
+      <p>Version 2.0 — Clinical medication reconciliation for CRAs. All data processed locally. No patient data transmitted to external servers (except Claude API for OCR).</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: SESSION SETUP (Kit Scanning)
+═══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-setup">
+  <div class="header">
+    <div class="logo"><div class="logo-mark">M</div><div class="logo-text">Med<span>Scan</span></div></div>
+    <div class="header-actions">
+      <button class="icon-btn" onclick="showScreen('screen-home')" title="Home">⌂</button>
+      <button class="icon-btn" onclick="showScreen('screen-settings')" title="Settings">⚙</button>
+    </div>
+  </div>
+  <div class="content">
     <p class="screen-title">New Session</p>
     <p class="screen-subtitle">Configure this reconciliation visit</p>
-
     <p class="section-label">Site Information</p>
-    <div class="field">
-      <label>Site Name</label>
-      <input type="text" id="site-name" placeholder="e.g. Hospital Italiano — Buenos Aires">
-    </div>
-    <div class="field">
-      <label>Protocol / Study ID</label>
-      <input type="text" id="protocol-id" placeholder="e.g. TRIAL-2024-001">
-    </div>
-    <div class="field">
-      <label>CRA Name</label>
-      <input type="text" id="cra-name" placeholder="Your full name">
-    </div>
-    <div class="field">
-      <label>Visit Date</label>
-      <input type="date" id="visit-date">
-    </div>
+    <div class="field"><label>Site Name</label><input type="text" id="site-name" placeholder="e.g. Hospital Italiano — Buenos Aires"></div>
+    <div class="field"><label>Protocol / Study ID</label><input type="text" id="protocol-id" placeholder="e.g. EFC17919"></div>
+    <div class="field"><label>CRA Name</label><input type="text" id="cra-name" placeholder="Your full name"></div>
+    <div class="field"><label>Visit Date</label><input type="date" id="visit-date"></div>
 
-    <p class="section-label" style="margin-top: 8px;">Mode</p>
-
+    <p class="section-label" style="margin-top:8px;">Mode</p>
     <div style="display:flex; gap:8px; margin-bottom:14px;">
-      <button id="mode-reconcile" onclick="setMode('reconcile')" style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:var(--bg); font-family:var(--font-mono); font-size:13px; cursor:pointer; font-weight:600;">
-        ✓ Reconciliation
-      </button>
-      <button id="mode-inventory" onclick="setMode('inventory')" style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text-muted); font-family:var(--font-mono); font-size:13px; cursor:pointer;">
-        📦 Free Inventory
-      </button>
+      <button id="mode-reconcile" onclick="setMode('reconcile')" style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:var(--bg); font-family:var(--font-mono); font-size:13px; cursor:pointer; font-weight:600;">✓ Reconciliation</button>
+      <button id="mode-inventory" onclick="setMode('inventory')" style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text-muted); font-family:var(--font-mono); font-size:13px; cursor:pointer;">📦 Free Inventory</button>
     </div>
 
     <div id="iwrs-section">
-      <div class="alert-strip">
-        <span>ℹ</span>
-        <span>Upload the IWRS export file (.xlsx or .csv). The system will validate each scanned product in real time.</span>
-      </div>
+      <div class="alert-strip"><span>ℹ</span><span>Upload the IWRS export file (.xlsx or .csv). The system will validate each scanned product in real time.</span></div>
       <div class="upload-zone" id="upload-zone">
         <input type="file" id="iwrs-file" accept=".xlsx,.csv,.xls" onchange="handleIWRSUpload(event)">
         <div class="upload-icon">📂</div>
@@ -893,255 +439,225 @@
         <div class="upload-hint" id="upload-hint">Tap to select · .xlsx or .csv</div>
       </div>
     </div>
-
     <div id="inventory-section" style="display:none;">
       <div class="alert-strip" style="background:rgba(0,229,160,0.08); border-color:rgba(0,229,160,0.2); color:var(--green);">
-        <span>📦</span>
-        <span>Free Inventory mode — scan and list products freely. No IWRS validation. Duplicates and expired products are still flagged.</span>
+        <span>📦</span><span>Free Inventory mode — scan and list products freely. Duplicates and expired products are still flagged.</span>
       </div>
     </div>
-
-    <div style="margin-top: 24px;">
-      <button class="btn btn-primary" id="start-scan-btn" onclick="startSession()" disabled>
-        Start Scanning →
-      </button>
+    <div style="margin-top:24px;">
+      <button class="btn btn-primary" id="start-scan-btn" onclick="startSession()" disabled>Start Scanning →</button>
     </div>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
-     SCREEN 3: SCANNING
+     SCREEN: SCANNING
 ═══════════════════════════════════════════════════════ -->
 <div class="screen" id="screen-scan">
   <div class="header">
-    <div class="logo">
-      <div class="logo-mark">M</div>
-      <div class="logo-text">Med<span>Scan</span></div>
-    </div>
+    <div class="logo"><div class="logo-mark">M</div><div class="logo-text">Med<span>Scan</span></div></div>
     <div class="header-actions">
       <button class="icon-btn" onclick="endSession()" title="Finish">◼</button>
       <button class="icon-btn" onclick="showScreen('screen-settings')" title="Settings">⚙</button>
     </div>
   </div>
-
   <div class="session-info-bar" id="session-info-bar">
     <span><b id="si-site">—</b></span>
     <span>Protocol: <b id="si-protocol">—</b></span>
     <span>Date: <b id="si-date">—</b></span>
     <span>CRA: <b id="si-cra">—</b></span>
   </div>
-
   <div class="stats-strip">
-    <div class="stat-chip total">
-      <div class="stat-val" id="stat-total">0</div>
-      <div class="stat-lbl">Total</div>
-    </div>
-    <div class="stat-chip ok">
-      <div class="stat-val" id="stat-ok">0</div>
-      <div class="stat-lbl">Auth</div>
-    </div>
-    <div class="stat-chip dup">
-      <div class="stat-val" id="stat-dup">0</div>
-      <div class="stat-lbl">Dup</div>
-    </div>
-    <div class="stat-chip unauth">
-      <div class="stat-val" id="stat-unauth">0</div>
-      <div class="stat-lbl">Unauth</div>
-    </div>
-    <div class="stat-chip exp">
-      <div class="stat-val" id="stat-exp">0</div>
-      <div class="stat-lbl">Exp</div>
-    </div>
+    <div class="stat-chip total"><div class="stat-val" id="stat-total">0</div><div class="stat-lbl">Total</div></div>
+    <div class="stat-chip ok"><div class="stat-val" id="stat-ok">0</div><div class="stat-lbl">Auth</div></div>
+    <div class="stat-chip dup"><div class="stat-val" id="stat-dup">0</div><div class="stat-lbl">Dup</div></div>
+    <div class="stat-chip unauth"><div class="stat-val" id="stat-unauth">0</div><div class="stat-lbl">Unauth</div></div>
+    <div class="stat-chip exp"><div class="stat-val" id="stat-exp">0</div><div class="stat-lbl">Exp</div></div>
   </div>
-
-  <div class="progress-wrap">
-    <div class="progress-bar" id="progress-bar"></div>
-  </div>
-
-  <div style="padding: 0 20px 0; flex: 1; display: flex; flex-direction: column; overflow: hidden;">
-    <!-- Capture mode tabs -->
-    <div class="capture-tabs" style="margin-top: 14px;">
-      <button class="capture-tab active" id="tab-qr" onclick="switchTab('qr')">📷 QR / Barcode</button>
-      <button class="capture-tab" id="tab-ocr" onclick="switchTab('ocr')">🔍 OCR (Camera)</button>
+  <div class="progress-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+  <div style="padding:0 20px 0; flex:1; display:flex; flex-direction:column; overflow:hidden;">
+    <div class="capture-tabs" style="margin-top:14px;">
+      <button class="capture-tab active" id="tab-qr" onclick="switchTab('qr')">📷 QR</button>
+      <button class="capture-tab" id="tab-ocr" onclick="switchTab('ocr')">🔍 OCR</button>
       <button class="capture-tab" id="tab-manual" onclick="switchTab('manual')">✏ Manual</button>
     </div>
-
-    <!-- QR Tab -->
     <div id="panel-qr">
       <div class="camera-wrap">
         <video id="video" autoplay playsinline muted></video>
-        <div class="scan-overlay">
-          <div class="scan-frame">
-            <span></span>
-            <div class="scan-line"></div>
-          </div>
-        </div>
+        <div class="scan-overlay"><div class="scan-frame"><span></span><div class="scan-line"></div></div></div>
         <div class="scan-status" id="scan-status">Searching for code...</div>
       </div>
     </div>
-
-    <!-- OCR Tab -->
     <div id="panel-ocr" style="display:none;">
       <div class="camera-wrap">
         <video id="video-ocr" autoplay playsinline muted></video>
-        <div class="scan-overlay">
-          <div class="scan-frame"><span></span></div>
-        </div>
+        <div class="scan-overlay"><div class="scan-frame"><span></span></div></div>
         <div class="scan-status">Position label · Tap capture</div>
       </div>
-      <button class="btn btn-secondary" style="margin-bottom: 12px;" onclick="captureOCR()">📸 Capture & Extract</button>
+      <button class="btn btn-secondary" style="margin-bottom:12px;" onclick="captureOCR()">📸 Capture & Extract</button>
       <canvas id="canvas-ocr" style="display:none;"></canvas>
     </div>
-
-    <!-- Manual Tab -->
     <div id="panel-manual" style="display:none;">
       <div class="manual-grid">
-        <div class="field" style="margin-bottom:0;">
-          <label>REF</label>
-          <input type="text" id="m-ref" placeholder="EFC17919" style="text-transform:uppercase;">
-        </div>
-        <div class="field" style="margin-bottom:0;">
-          <label>SN</label>
-          <input type="text" id="m-sn" placeholder="0268366">
-        </div>
-        <div class="field" style="margin-bottom:0;">
-          <label>PSU</label>
-          <input type="text" id="m-psu" placeholder="59133">
-        </div>
-        <div class="field" style="margin-bottom:0;">
-          <label>LOT</label>
-          <input type="text" id="m-lot" placeholder="IP041184">
-        </div>
-        <div class="field" style="margin-bottom:0; grid-column: 1/-1;">
-          <label>EXP (MM-YYYY)</label>
-          <input type="text" id="m-exp" placeholder="10-2026">
-        </div>
+        <div class="field" style="margin-bottom:0;"><label>REF</label><input type="text" id="m-ref" placeholder="EFC17919" style="text-transform:uppercase;"></div>
+        <div class="field" style="margin-bottom:0;"><label>SN</label><input type="text" id="m-sn" placeholder="0268366"></div>
+        <div class="field" style="margin-bottom:0;"><label>PSU</label><input type="text" id="m-psu" placeholder="59133"></div>
+        <div class="field" style="margin-bottom:0;"><label>LOT</label><input type="text" id="m-lot" placeholder="IP041184"></div>
+        <div class="field" style="margin-bottom:0; grid-column:1/-1;"><label>EXP (MM-YYYY)</label><input type="text" id="m-exp" placeholder="10-2026"></div>
       </div>
       <button class="btn btn-primary" onclick="submitManual()">Add Product</button>
     </div>
-
-    <!-- Preview Card -->
     <div class="preview-card" id="preview-card">
       <div class="preview-title">📋 Confirm Extracted Data</div>
       <div class="preview-grid">
-        <div class="preview-field">
-          <div class="pf-label">REF</div>
-          <input type="text" id="p-ref">
-        </div>
-        <div class="preview-field">
-          <div class="pf-label">SN</div>
-          <input type="text" id="p-sn">
-        </div>
-        <div class="preview-field">
-          <div class="pf-label">PSU</div>
-          <input type="text" id="p-psu">
-        </div>
-        <div class="preview-field">
-          <div class="pf-label">LOT</div>
-          <input type="text" id="p-lot">
-        </div>
-        <div class="preview-field" style="grid-column: 1/-1;">
-          <div class="pf-label">EXP</div>
-          <input type="text" id="p-exp">
-        </div>
+        <div class="preview-field"><div class="pf-label">REF</div><input type="text" id="p-ref"></div>
+        <div class="preview-field"><div class="pf-label">SN</div><input type="text" id="p-sn"></div>
+        <div class="preview-field"><div class="pf-label">PSU</div><input type="text" id="p-psu"></div>
+        <div class="preview-field"><div class="pf-label">LOT</div><input type="text" id="p-lot"></div>
+        <div class="preview-field" style="grid-column:1/-1;"><div class="pf-label">EXP</div><input type="text" id="p-exp"></div>
       </div>
       <div class="btn-row">
         <button class="btn btn-secondary" onclick="dismissPreview()">✕ Discard</button>
         <button class="btn btn-primary" onclick="confirmProduct()">✓ Confirm</button>
       </div>
     </div>
-
-    <!-- Validation Banner -->
     <div class="validation-banner" id="validation-banner"></div>
-
-    <!-- Scanned list (scrollable) -->
-    <div style="flex:1; overflow-y:auto; padding-bottom: 16px; margin: 0 -0px;">
+    <div style="flex:1; overflow-y:auto; padding-bottom:16px;">
       <div class="scan-list" id="scan-list">
-        <div class="empty-state">
-          <div class="empty-icon">📦</div>
-          <p>No products scanned yet.<br>Point the camera at a label or QR code.</p>
-        </div>
+        <div class="empty-state"><div class="empty-icon">📦</div><p>No products scanned yet.<br>Point the camera at a label or QR code.</p></div>
       </div>
     </div>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
-     SCREEN 4: SUMMARY
+     SCREEN: SUMMARY (Scanning)
 ═══════════════════════════════════════════════════════ -->
 <div class="screen" id="screen-summary">
   <div class="header">
-    <div class="logo">
-      <div class="logo-mark">M</div>
-      <div class="logo-text">Med<span>Scan</span></div>
-    </div>
+    <div class="logo"><div class="logo-mark">M</div><div class="logo-text">Med<span>Scan</span></div></div>
     <div class="header-actions">
       <button class="icon-btn" onclick="newSession()" title="New Session">+</button>
+      <button class="icon-btn" onclick="showScreen('screen-home')" title="Home">⌂</button>
     </div>
   </div>
-  <div class="content" style="overflow-y: auto; padding-bottom: 100px;">
+  <div class="content" style="overflow-y:auto; padding-bottom:100px;">
     <p class="screen-title">Reconciliation<br>Report</p>
     <p class="screen-subtitle" id="sum-subtitle">Session complete</p>
-
-    <div class="stats-strip" style="padding: 0; margin-bottom: 20px;">
-      <div class="stat-chip total">
-        <div class="stat-val" id="sum-total">0</div>
-        <div class="stat-lbl">Total</div>
-      </div>
-      <div class="stat-chip ok">
-        <div class="stat-val" id="sum-ok">0</div>
-        <div class="stat-lbl">Auth</div>
-      </div>
-      <div class="stat-chip dup">
-        <div class="stat-val" id="sum-dup">0</div>
-        <div class="stat-lbl">Dup</div>
-      </div>
-      <div class="stat-chip unauth">
-        <div class="stat-val" id="sum-unauth">0</div>
-        <div class="stat-lbl">Unauth</div>
-      </div>
-      <div class="stat-chip exp">
-        <div class="stat-val" id="sum-exp">0</div>
-        <div class="stat-lbl">Exp</div>
-      </div>
+    <div class="stats-strip" style="padding:0; margin-bottom:20px;">
+      <div class="stat-chip total"><div class="stat-val" id="sum-total">0</div><div class="stat-lbl">Total</div></div>
+      <div class="stat-chip ok"><div class="stat-val" id="sum-ok">0</div><div class="stat-lbl">Auth</div></div>
+      <div class="stat-chip dup"><div class="stat-val" id="sum-dup">0</div><div class="stat-lbl">Dup</div></div>
+      <div class="stat-chip unauth"><div class="stat-val" id="sum-unauth">0</div><div class="stat-lbl">Unauth</div></div>
+      <div class="stat-chip exp"><div class="stat-val" id="sum-exp">0</div><div class="stat-lbl">Exp</div></div>
     </div>
-
     <p class="section-label">Scanned Products</p>
-    <div style="overflow-x: auto; margin-bottom: 20px; border-radius: var(--radius); border: 1px solid var(--border);">
+    <div style="overflow-x:auto; margin-bottom:20px; border-radius:var(--radius); border:1px solid var(--border);">
       <table class="summary-table" id="sum-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>SN</th>
-            <th>REF</th>
-            <th>LOT</th>
-            <th>EXP</th>
-            <th>Status</th>
-          </tr>
-        </thead>
+        <thead><tr><th>#</th><th>SN</th><th>REF</th><th>LOT</th><th>EXP</th><th>Status</th></tr></thead>
         <tbody id="sum-tbody"></tbody>
       </table>
     </div>
-
     <div id="missing-section" style="display:none;">
       <p class="section-label">Not Scanned (In IWRS)</p>
       <div class="missing-count" id="missing-count-badge">0 items not returned</div>
-      <div style="overflow-x: auto; margin-bottom: 20px; border-radius: var(--radius); border: 1px solid var(--border);">
-        <table class="summary-table" id="missing-table">
-          <thead>
-            <tr><th>SN</th><th>REF</th><th>LOT</th><th>EXP</th><th>Status</th></tr>
-          </thead>
-          <tbody id="missing-tbody"></tbody>
-        </table>
+      <div style="overflow-x:auto; margin-bottom:20px; border-radius:var(--radius); border:1px solid var(--border);">
+        <table class="summary-table"><thead><tr><th>SN</th><th>REF</th><th>LOT</th><th>EXP</th><th>Status</th></tr></thead><tbody id="missing-tbody"></tbody></table>
+      </div>
+    </div>
+    <button class="btn btn-success" onclick="exportExcel()" style="margin-bottom:10px;">⬇ Export to Excel</button>
+    <button class="btn btn-secondary" onclick="newSession()">+ New Session</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: PHARMACY INVENTORY
+═══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-pharmacy">
+  <div class="header">
+    <div class="logo"><div class="logo-mark">M</div><div class="logo-text">Med<span>Scan</span></div></div>
+    <div class="header-actions">
+      <button class="icon-btn" onclick="showScreen('screen-home')">⌂</button>
+    </div>
+  </div>
+
+  <!-- SETUP VIEW -->
+  <div class="content" id="pharm-setup-view">
+    <p class="screen-title">Pharmacy<br>Inventory</p>
+    <p class="screen-subtitle">Upload IWRS reports to classify which kits are in the pharmacy</p>
+
+    <div class="alert-strip">
+      <span>ℹ</span>
+      <div>
+        <b>Required: R26 + R28</b><br>
+        R26 = Kit inventory &nbsp;·&nbsp; R28 = Visit &amp; dispensing history<br>
+        <span style="color:var(--text-muted);">R27 = Optional — adds next expected visit dates</span>
       </div>
     </div>
 
-    <button class="btn btn-success" onclick="exportExcel()" style="margin-bottom: 10px;">
-      ⬇ Export to Excel
+    <p class="section-label">Report 26 — Kit Inventory <span style="color:var(--red);">*</span></p>
+    <div class="upload-zone" id="r26-zone">
+      <input type="file" id="r26-file" accept=".xlsx,.csv" onchange="handlePharmUpload('r26', event)">
+      <div class="upload-icon">📦</div>
+      <div class="upload-label" id="r26-label">Upload Report 26</div>
+      <div class="upload-hint">Kit inventory &amp; shipment lifecycle data</div>
+    </div>
+
+    <p class="section-label" style="margin-top:20px;">Report 28 — Visit History <span style="color:var(--red);">*</span></p>
+    <div class="upload-zone" id="r28-zone">
+      <input type="file" id="r28-file" accept=".xlsx,.csv" onchange="handlePharmUpload('r28', event)">
+      <div class="upload-icon">📋</div>
+      <div class="upload-label" id="r28-label">Upload Report 28</div>
+      <div class="upload-hint">Visit log with kit dispensing history</div>
+    </div>
+
+    <p class="section-label" style="margin-top:20px;">Report 27 — Subject Status <span style="color:var(--text-muted); font-size:10px;">(optional)</span></p>
+    <div class="upload-zone optional" id="r27-zone">
+      <input type="file" id="r27-file" accept=".xlsx,.csv" onchange="handlePharmUpload('r27', event)">
+      <div class="upload-icon">👤</div>
+      <div class="upload-label" id="r27-label" style="color:var(--text-muted);">Upload Report 27</div>
+      <div class="upload-hint">Subject list with next expected visit dates</div>
+    </div>
+
+    <button class="btn btn-primary" id="pharm-analyze-btn" style="margin-top:24px;" onclick="runPharmacyAnalysis()" disabled>
+      Analyze Inventory →
     </button>
-    <button class="btn btn-secondary" onclick="newSession()">
-      + New Session
-    </button>
+  </div>
+
+  <!-- RESULTS VIEW -->
+  <div id="pharm-results-view" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+    <div class="content" style="overflow-y:auto; padding-bottom:80px;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+        <button class="icon-btn" style="width:32px;height:32px;font-size:14px;" onclick="resetPharmacy()">‹</button>
+        <p class="screen-title" style="margin:0;">Pharmacy<br>Inventory</p>
+      </div>
+      <p class="screen-subtitle" id="pharm-subtitle">Site report</p>
+
+      <div class="pharm-summary" id="pharm-stats"></div>
+
+      <div class="filter-bar" id="pharm-filter-bar">
+        <div class="filter-pill active" onclick="filterKits('all',this)">All</div>
+        <div class="filter-pill p-green"  onclick="filterKits('available',this)">🟢 In Pharmacy</div>
+        <div class="filter-pill p-yellow" onclick="filterKits('returned',this)">🟡 Returned</div>
+        <div class="filter-pill p-red"    onclick="filterKits('patient',this)">🔴 With Patient</div>
+      </div>
+
+      <div id="pharm-kit-list"></div>
+
+      <button class="btn btn-success" onclick="exportPharmReport()">⬇ Export to Excel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── KIT DETAIL MODAL ───────────────────────────────── -->
+<div class="modal-backdrop" id="kit-detail-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <p class="modal-title" id="kd-title">Kit Details</p>
+    <div id="kd-content"></div>
+    <div style="margin-top:16px;">
+      <button class="btn btn-secondary" onclick="document.getElementById('kit-detail-modal').classList.remove('show')">Close</button>
+    </div>
   </div>
 </div>
 
@@ -1160,914 +676,820 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 <script>
-// ─── STATE ──────────────────────────────────────────────────────────
+
+// ════════════════════════════════════════════════════════
+//  GLOBAL STATE
+// ════════════════════════════════════════════════════════
 const state = {
+  // Kit scanning
   session: null,
-  mode: 'reconcile',    // 'reconcile' | 'inventory'
-  scanned: [],          // array of product objects
-  iwrs: new Map(),      // SN → row data (from IWRS file)
-  iwrsRaw: [],          // raw array of IWRS rows
+  mode: 'reconcile',
+  scanned: [],
+  iwrs: new Map(),
+  iwrsRaw: [],
   videoStream: null,
   codeReader: null,
   ocrStream: null,
   activeTab: 'qr',
   scanning: false,
+  prevScreen: 'screen-home',
+
+  // Pharmacy inventory
+  pharm: {
+    r26: null, r27: null, r28: null,
+    kits: [],
+    currentFilter: 'all'
+  }
 };
 
-// ─── INIT ────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('visit-date').valueAsDate = new Date();
   const savedKey = sessionStorage.getItem('anthropic_key');
   if (savedKey) document.getElementById('api-key-input').value = savedKey;
-
-  ['site-name', 'cra-name', 'visit-date'].forEach(id => {
-    document.getElementById(id).addEventListener('input', checkSetupReady);
-  });
-
-  // Init mode
+  ['site-name', 'cra-name', 'visit-date'].forEach(id =>
+    document.getElementById(id).addEventListener('input', checkSetupReady));
   setMode('reconcile');
 });
 
-function setMode(mode) {
-  state.mode = mode;
-  const isReconcile = mode === 'reconcile';
-
-  document.getElementById('mode-reconcile').style.background = isReconcile ? 'var(--accent)' : 'var(--surface)';
-  document.getElementById('mode-reconcile').style.color = isReconcile ? 'var(--bg)' : 'var(--text-muted)';
-  document.getElementById('mode-reconcile').style.borderColor = isReconcile ? 'var(--accent)' : 'var(--border)';
-  document.getElementById('mode-reconcile').style.fontWeight = isReconcile ? '600' : 'normal';
-
-  document.getElementById('mode-inventory').style.background = !isReconcile ? 'var(--green)' : 'var(--surface)';
-  document.getElementById('mode-inventory').style.color = !isReconcile ? 'var(--bg)' : 'var(--text-muted)';
-  document.getElementById('mode-inventory').style.borderColor = !isReconcile ? 'var(--green)' : 'var(--border)';
-  document.getElementById('mode-inventory').style.fontWeight = !isReconcile ? '600' : 'normal';
-
-  document.getElementById('iwrs-section').style.display = isReconcile ? 'block' : 'none';
-  document.getElementById('inventory-section').style.display = isReconcile ? 'none' : 'block';
-
-  checkSetupReady();
-}
-
-function checkSetupReady() {
-  const site = document.getElementById('site-name').value.trim();
-  const cra = document.getElementById('cra-name').value.trim();
-  const date = document.getElementById('visit-date').value;
-  const iwrsLoaded = state.iwrs.size > 0;
-  const ready = site && cra && date && (state.mode === 'inventory' || iwrsLoaded);
-  document.getElementById('start-scan-btn').disabled = !ready;
-}
-
-// ─── SCREEN NAVIGATION ───────────────────────────────────────────────
+// ════════════════════════════════════════════════════════
+//  NAVIGATION
+// ════════════════════════════════════════════════════════
 function showScreen(id) {
+  const prev = document.querySelector('.screen.active');
+  if (prev) state.prevScreen = prev.id;
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-
-  if (id !== 'screen-scan') {
-    stopCamera();
-  }
-  if (id === 'screen-scan' && state.activeTab === 'qr') {
-    startQRCamera();
-  }
+  if (id !== 'screen-scan') stopCamera();
+  if (id === 'screen-scan' && state.activeTab === 'qr') startQRCamera();
 }
 
-// ─── SETTINGS ────────────────────────────────────────────────────────
+function goBack() { showScreen(state.prevScreen || 'screen-home'); }
+
+// ════════════════════════════════════════════════════════
+//  SETTINGS
+// ════════════════════════════════════════════════════════
 function saveApiKey() {
   const key = document.getElementById('api-key-input').value.trim();
   if (!key) { toast('Please enter an API key'); return; }
   sessionStorage.setItem('anthropic_key', key);
   toast('✓ API key saved for this session');
-  showScreen('screen-setup');
+  goBack();
 }
 
-// ─── IWRS UPLOAD ─────────────────────────────────────────────────────
-async function handleIWRSUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
+// ════════════════════════════════════════════════════════
+//  KIT SCANNING — SETUP
+// ════════════════════════════════════════════════════════
+function setMode(mode) {
+  state.mode = mode;
+  const isRec = mode === 'reconcile';
+  const btnRec = document.getElementById('mode-reconcile');
+  const btnInv = document.getElementById('mode-inventory');
+  btnRec.style.background    = isRec ? 'var(--accent)' : 'var(--surface)';
+  btnRec.style.color         = isRec ? 'var(--bg)' : 'var(--text-muted)';
+  btnRec.style.borderColor   = isRec ? 'var(--accent)' : 'var(--border)';
+  btnRec.style.fontWeight    = isRec ? '600' : 'normal';
+  btnInv.style.background    = !isRec ? 'var(--green)' : 'var(--surface)';
+  btnInv.style.color         = !isRec ? 'var(--bg)' : 'var(--text-muted)';
+  btnInv.style.borderColor   = !isRec ? 'var(--green)' : 'var(--border)';
+  btnInv.style.fontWeight    = !isRec ? '600' : 'normal';
+  document.getElementById('iwrs-section').style.display      = isRec ? 'block' : 'none';
+  document.getElementById('inventory-section').style.display = isRec ? 'none'  : 'block';
+  checkSetupReady();
+}
 
+function checkSetupReady() {
+  const site  = document.getElementById('site-name').value.trim();
+  const cra   = document.getElementById('cra-name').value.trim();
+  const date  = document.getElementById('visit-date').value;
+  const ready = site && cra && date && (state.mode === 'inventory' || state.iwrs.size > 0);
+  document.getElementById('start-scan-btn').disabled = !ready;
+}
+
+async function handleIWRSUpload(event) {
+  const file = event.target.files[0]; if (!file) return;
   showLoading('Parsing IWRS file...');
   try {
     const data = await file.arrayBuffer();
     let rows = [];
-
     if (file.name.toLowerCase().endsWith('.csv')) {
-      const text = new TextDecoder().decode(data);
-      rows = parseCSV(text);
+      rows = parseCSV(new TextDecoder().decode(data));
     } else {
       const wb = XLSX.read(data, { type: 'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
     }
-
-    // Build IWRS map — try to find SN column (flexible column names)
-    state.iwrs.clear();
-    state.iwrsRaw = rows;
-
-    const snKeys = ['SN', 'sn', 'Serial Number', 'SerialNumber', 'serial_number', 'SERIAL_NUMBER'];
+    state.iwrs.clear(); state.iwrsRaw = rows;
+    const snKeys = ['SN','sn','Serial Number','SerialNumber','serial_number'];
     let snKey = null;
-    if (rows.length > 0) {
-      const firstRow = rows[0];
-      snKey = snKeys.find(k => k in firstRow) || Object.keys(firstRow)[1] || Object.keys(firstRow)[0];
-    }
-
-    rows.forEach(row => {
-      const sn = String(row[snKey] || '').trim();
-      if (sn) state.iwrs.set(sn, row);
-    });
-
+    if (rows.length > 0) snKey = snKeys.find(k => k in rows[0]) || Object.keys(rows[0])[1];
+    rows.forEach(row => { const sn = String(row[snKey]||'').trim(); if (sn) state.iwrs.set(sn, row); });
     hideLoading();
-
-    if (state.iwrs.size === 0) {
-      toast('⚠ No SN data found. Check column headers.');
-    } else {
-      document.getElementById('upload-zone').classList.add('loaded');
-      document.getElementById('upload-icon') && (document.getElementById('upload-icon').textContent = '✅');
-      document.getElementById('upload-label').textContent = `✅ ${file.name}`;
-      document.getElementById('upload-hint').textContent = `${state.iwrs.size} products loaded from IWRS`;
-      checkSetupReady();
-      toast(`✓ ${state.iwrs.size} products loaded`);
-    }
-
-  } catch (err) {
-    hideLoading();
-    toast('Error parsing file: ' + err.message);
-    console.error(err);
-  }
+    if (state.iwrs.size === 0) { toast('⚠ No SN data found. Check column headers.'); return; }
+    document.getElementById('upload-zone').classList.add('loaded');
+    document.getElementById('upload-label').textContent = `✅ ${file.name}`;
+    document.getElementById('upload-hint').textContent  = `${state.iwrs.size} products loaded`;
+    checkSetupReady();
+    toast(`✓ ${state.iwrs.size} products loaded`);
+  } catch (err) { hideLoading(); toast('Error: ' + err.message); }
 }
 
 function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  const lines = text.trim().split('\n'); if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,''));
   return lines.slice(1).map(line => {
-    const vals = line.split(',').map(v => v.trim().replace(/"/g, ''));
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = vals[i] || '');
-    return obj;
+    const vals = line.split(',').map(v => v.trim().replace(/"/g,''));
+    const obj = {}; headers.forEach((h,i) => obj[h] = vals[i]||''); return obj;
   });
 }
 
-// ─── SESSION ──────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════
+//  KIT SCANNING — SESSION
+// ════════════════════════════════════════════════════════
 function startSession() {
   const site = document.getElementById('site-name').value.trim();
   const protocol = document.getElementById('protocol-id').value.trim();
-  const cra = document.getElementById('cra-name').value.trim();
+  const cra  = document.getElementById('cra-name').value.trim();
   const date = document.getElementById('visit-date').value;
-
   state.session = { site, protocol, cra, date, mode: state.mode };
   state.scanned = [];
-
-  // Update info bar
-  document.getElementById('si-site').textContent = site;
+  document.getElementById('si-site').textContent     = site;
   document.getElementById('si-protocol').textContent = protocol || '—';
-  document.getElementById('si-date').textContent = date;
-  document.getElementById('si-cra').textContent = cra;
-
-  updateStats();
-  renderScanList();
-  showScreen('screen-scan');
+  document.getElementById('si-date').textContent     = date;
+  document.getElementById('si-cra').textContent      = cra;
+  updateStats(); renderScanList(); showScreen('screen-scan');
 }
 
-function endSession() {
-  stopCamera();
-  buildSummary();
-  showScreen('screen-summary');
-}
+function endSession() { stopCamera(); buildSummary(); showScreen('screen-summary'); }
 
 function newSession() {
-  state.scanned = [];
-  state.iwrs.clear();
-  state.iwrsRaw = [];
-  state.session = null;
-  state.mode = 'reconcile';
+  state.scanned = []; state.iwrs.clear(); state.iwrsRaw = []; state.session = null;
   setMode('reconcile');
-
   document.getElementById('upload-zone').classList.remove('loaded');
   document.getElementById('upload-label').textContent = 'Upload IWRS File';
-  document.getElementById('upload-hint').textContent = 'Tap to select · .xlsx or .csv';
+  document.getElementById('upload-hint').textContent  = 'Tap to select · .xlsx or .csv';
   document.getElementById('iwrs-file').value = '';
   document.getElementById('start-scan-btn').disabled = true;
-
   showScreen('screen-setup');
 }
 
-// ─── CAMERA / QR ─────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════
+//  CAMERA / QR
+// ════════════════════════════════════════════════════════
 async function startQRCamera() {
   if (state.scanning) return;
-
   const video = document.getElementById('video');
   const statusEl = document.getElementById('scan-status');
-
   statusEl.textContent = 'Starting camera...';
-
   try {
-    // Stop any existing stream first
-    if (state.videoStream) {
-      state.videoStream.getTracks().forEach(t => t.stop());
-      state.videoStream = null;
-    }
-
-    // Try rear camera first, fall back to any camera
+    if (state.videoStream) { state.videoStream.getTracks().forEach(t=>t.stop()); state.videoStream=null; }
     let stream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } }
-      });
-    } catch (e) {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    }
-
-    state.videoStream = stream;
-    video.srcObject = stream;
-
-    await new Promise((resolve, reject) => {
-      video.onloadedmetadata = resolve;
-      video.onerror = reject;
-      setTimeout(reject, 5000); // timeout fallback
-    });
-
+    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } }); }
+    catch(e) { stream = await navigator.mediaDevices.getUserMedia({ video: true }); }
+    state.videoStream = stream; video.srcObject = stream;
+    await new Promise((res,rej) => { video.onloadedmetadata=res; video.onerror=rej; setTimeout(rej,5000); });
     await video.play();
-    state.scanning = true;
-    statusEl.textContent = 'Searching for code...';
-
-    // Start ZXing scanning loop
+    state.scanning = true; statusEl.textContent = 'Searching for code...';
     const codeReader = new ZXing.BrowserMultiFormatReader();
     state.codeReader = codeReader;
-
-    codeReader.decodeFromStream(stream, video, (result, err) => {
-      if (result) handleQRResult(result.getText());
-    });
-
+    codeReader.decodeFromStream(stream, video, (result) => { if (result) handleQRResult(result.getText()); });
   } catch (err) {
     state.scanning = false;
-    console.error('Camera error:', err);
-
     let msg = 'Camera unavailable';
-    if (err.name === 'NotAllowedError') msg = 'Camera permission denied — allow access in browser settings';
-    else if (err.name === 'NotFoundError') msg = 'No camera found on this device';
-    else if (err.name === 'NotReadableError') msg = 'Camera in use by another app';
-
-    statusEl.textContent = msg;
-    toast('⚠ ' + msg);
+    if (err.name==='NotAllowedError') msg='Camera permission denied';
+    else if (err.name==='NotFoundError') msg='No camera found';
+    statusEl.textContent = msg; toast('⚠ ' + msg);
   }
 }
 
 function stopCamera() {
-  if (state.codeReader) {
-    try { state.codeReader.reset(); } catch(e) {}
-    state.codeReader = null;
-  }
-  if (state.videoStream) {
-    state.videoStream.getTracks().forEach(t => t.stop());
-    state.videoStream = null;
-  }
-  if (state.ocrStream) {
-    state.ocrStream.getTracks().forEach(t => t.stop());
-    state.ocrStream = null;
-  }
+  if (state.codeReader) { try { state.codeReader.reset(); } catch(e){} state.codeReader=null; }
+  if (state.videoStream) { state.videoStream.getTracks().forEach(t=>t.stop()); state.videoStream=null; }
+  if (state.ocrStream)   { state.ocrStream.getTracks().forEach(t=>t.stop()); state.ocrStream=null; }
   state.scanning = false;
 }
 
-// ─── QR RESULT PARSING ───────────────────────────────────────────────
-let lastQRText = '';
-let lastQRTime = 0;
-
+let lastQRText='', lastQRTime=0;
 function handleQRResult(text) {
   const now = Date.now();
-  if (text === lastQRText && now - lastQRTime < 3000) return; // debounce
-  lastQRText = text;
-  lastQRTime = now;
-
-  document.getElementById('scan-status').textContent = '✓ Code detected!';
-  setTimeout(() => {
-    if (document.getElementById('scan-status'))
-      document.getElementById('scan-status').textContent = 'Searching for code...';
-  }, 1500);
-
-  // Try to parse structured data
-  const product = parseQRData(text);
-  showPreview(product);
-  vibrate();
+  if (text===lastQRText && now-lastQRTime<3000) return;
+  lastQRText=text; lastQRTime=now;
+  document.getElementById('scan-status').textContent='✓ Code detected!';
+  setTimeout(() => { const el=document.getElementById('scan-status'); if(el) el.textContent='Searching for code...'; }, 1500);
+  showPreview(parseQRData(text)); vibrate();
 }
 
 function parseQRData(text) {
-  // Try JSON
-  try {
-    const parsed = JSON.parse(text);
-    return normalize(parsed);
-  } catch {}
-
-  // Try GS1 DataMatrix / GS1-128 (common in pharma)
-  // Application Identifiers: 01=GTIN, 10=LOT, 17=EXP, 21=SN
+  try { return normalize(JSON.parse(text)); } catch {}
   const gs1 = parseGS1(text);
-  if (gs1.lot || gs1.sn || gs1.exp) return gs1;
-
-  // Try key=value pairs
-  const product = {};
-  const patterns = {
-    ref: /(?:REF|ref)[:\s=]+([A-Za-z0-9]+)/i,
-    sn:  /(?:SN|S\/N|serial)[:\s=]+([A-Za-z0-9]+)/i,
-    psu: /(?:PSU)[:\s=]+([A-Za-z0-9]+)/i,
-    lot: /(?:LOT|lot)[:\s=]+([A-Za-z0-9]+)/i,
-    exp: /(?:EXP|exp|expiry)[:\s=]+(\d{2}[-\/]\d{4}|\d{4}[-\/]\d{2})/i,
-  };
-  let found = false;
-  Object.entries(patterns).forEach(([key, re]) => {
-    const m = text.match(re);
-    if (m) { product[key] = m[1]; found = true; }
-  });
-
-  if (!found) product.sn = text.trim().replace(/\s+/g, '');
+  if (gs1.lot||gs1.sn||gs1.exp) return gs1;
+  const product={};
+  const patterns = { ref:/(?:REF|ref)[:\s=]+([A-Za-z0-9]+)/i, sn:/(?:SN|S\/N|serial)[:\s=]+([A-Za-z0-9]+)/i, psu:/(?:PSU)[:\s=]+([A-Za-z0-9]+)/i, lot:/(?:LOT|lot)[:\s=]+([A-Za-z0-9]+)/i, exp:/(?:EXP|exp|expiry)[:\s=]+(\d{2}[-\/]\d{4}|\d{4}[-\/]\d{2})/i };
+  let found=false;
+  Object.entries(patterns).forEach(([key,re]) => { const m=text.match(re); if(m){product[key]=m[1];found=true;} });
+  if (!found) product.sn = text.trim().replace(/\s+/g,'');
   return product;
 }
 
 function parseGS1(text) {
-  const result = {};
-
-  // FNC1 separator can appear as char code 29, \x1d, or □
-  // Normalize all separators to a single char
-  const SEP = '\x1d';
+  const result={}, SEP='\x1d';
   let data = text.replace(/\u001d|□|\x1d/g, SEP);
-
-  // Fixed-length AIs (AI → length of value)
-  const FIXED = {
-    '01': 14,  // GTIN
-    '02': 14,  // GTIN of contained
-    '03': 14,
-    '17': 6,   // EXP date YYMMDD
-    '31': 8,
-    '32': 8,
-  };
-
-  // Variable-length AIs we care about
-  const VARIABLE = {
-    '10': 'lot',   // Batch/Lot
-    '21': 'sn',    // Serial Number
-    '11': 'prodDate',
-    '13': 'packDate',
-  };
-
-  let i = 0;
-  while (i < data.length) {
-    // Try 2-digit AI first
-    const ai2 = data.substr(i, 2);
-    const ai3 = data.substr(i, 3);
-    const ai4 = data.substr(i, 4);
-
-    if (FIXED[ai2] !== undefined) {
-      const len = FIXED[ai2];
-      const val = data.substr(i + 2, len);
-      if (ai2 === '01') result.gtin = val;
-      if (ai2 === '17') result.expRaw = val;
-      i += 2 + len;
-
-    } else if (VARIABLE[ai2] !== undefined) {
-      i += 2;
-      // Read until FNC1 separator or end
-      const end = data.indexOf(SEP, i);
-      const val = end === -1 ? data.substr(i) : data.substring(i, end);
-      result[VARIABLE[ai2]] = val.trim();
-      i = end === -1 ? data.length : end + 1;
-
-    } else {
-      // Unknown AI or data — skip one char
-      i++;
-    }
+  const FIXED = {'01':14,'02':14,'17':6};
+  const VARIABLE = {'10':'lot','21':'sn'};
+  let i=0;
+  while(i<data.length) {
+    const ai2=data.substr(i,2);
+    if (FIXED[ai2]!==undefined) {
+      const val=data.substr(i+2,FIXED[ai2]);
+      if(ai2==='01') result.gtin=val;
+      if(ai2==='17') result.expRaw=val;
+      i+=2+FIXED[ai2];
+    } else if (VARIABLE[ai2]!==undefined) {
+      i+=2; const end=data.indexOf(SEP,i); const val=end===-1?data.substr(i):data.substring(i,end);
+      result[VARIABLE[ai2]]=val.trim(); i=end===-1?data.length:end+1;
+    } else { i++; }
   }
-
-  // Derive REF from GTIN (strip leading zeros, keep last meaningful part)
-  if (result.gtin && !result.ref) {
-    result.ref = result.gtin.replace(/^0+/, '') || result.gtin;
+  if (result.gtin&&!result.ref) result.ref=result.gtin.replace(/^0+/,'')||result.gtin;
+  if (result.expRaw&&result.expRaw.length===6) {
+    const yy=result.expRaw.substr(0,2), mm=result.expRaw.substr(2,2);
+    result.exp = mm+'-'+(parseInt(yy)>50?'19':'20')+yy;
   }
-
-  // Convert EXP from YYMMDD → MM-YYYY
-  if (result.expRaw && result.expRaw.length === 6) {
-    const yy = result.expRaw.substr(0, 2);
-    const mm = result.expRaw.substr(2, 2);
-    const dd = result.expRaw.substr(4, 2);
-    const year = parseInt(yy) > 50 ? '19' + yy : '20' + yy;
-    // dd=00 means last day of month (GS1 spec)
-    result.exp = mm + '-' + year;
-  }
-
-  delete result.gtin;
-  delete result.expRaw;
-  delete result.prodDate;
-  delete result.packDate;
-
+  delete result.gtin; delete result.expRaw;
   return result;
 }
 
 function normalize(obj) {
-  const map = {
-    ref: ['REF', 'ref', 'reference', 'Reference'],
-    sn:  ['SN', 'sn', 'serial', 'serialNumber', 'SerialNumber'],
-    psu: ['PSU', 'psu'],
-    lot: ['LOT', 'lot', 'Lot', 'LotNumber', 'lotNumber'],
-    exp: ['EXP', 'exp', 'expiry', 'Expiry', 'expirationDate'],
-  };
-  const result = {};
-  Object.entries(map).forEach(([key, aliases]) => {
-    for (const alias of aliases) {
-      if (obj[alias] !== undefined) { result[key] = String(obj[alias]); break; }
-    }
-  });
+  const map={ref:['REF','ref','reference'],sn:['SN','sn','serial','serialNumber'],psu:['PSU','psu'],lot:['LOT','lot','Lot'],exp:['EXP','exp','expiry','Expiry']};
+  const result={};
+  Object.entries(map).forEach(([key,aliases]) => { for(const a of aliases) if(obj[a]!==undefined){result[key]=String(obj[a]);break;} });
   return result;
 }
 
-// ─── OCR TAB ──────────────────────────────────────────────────────────
 async function startOCRCamera() {
-  const video = document.getElementById('video-ocr');
+  const video=document.getElementById('video-ocr');
   try {
-    if (state.ocrStream) {
-      state.ocrStream.getTracks().forEach(t => t.stop());
-      state.ocrStream = null;
-    }
+    if(state.ocrStream){state.ocrStream.getTracks().forEach(t=>t.stop());state.ocrStream=null;}
     let stream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } }
-      });
-    } catch(e) {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    }
-    state.ocrStream = stream;
-    video.srcObject = stream;
-    await video.play();
-  } catch(err) {
-    console.error(err);
-    toast('Camera error: ' + (err.name === 'NotAllowedError' ? 'Permission denied' : err.message));
-  }
+    try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}});}
+    catch(e){stream=await navigator.mediaDevices.getUserMedia({video:true});}
+    state.ocrStream=stream; video.srcObject=stream; await video.play();
+  } catch(err){toast('Camera error: '+(err.name==='NotAllowedError'?'Permission denied':err.message));}
 }
 
 async function captureOCR() {
-  const video = document.getElementById('video-ocr');
-  const canvas = document.getElementById('canvas-ocr');
-  canvas.width = video.videoWidth || 640;
-  canvas.height = video.videoHeight || 480;
-  canvas.getContext('2d').drawImage(video, 0, 0);
-  const imageData = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
-
-  const apiKey = sessionStorage.getItem('anthropic_key');
-  if (!apiKey) {
-    toast('API key required for OCR. Go to Settings.');
-    return;
-  }
-
+  const video=document.getElementById('video-ocr'),canvas=document.getElementById('canvas-ocr');
+  canvas.width=video.videoWidth||640; canvas.height=video.videoHeight||480;
+  canvas.getContext('2d').drawImage(video,0,0);
+  const imageData=canvas.toDataURL('image/jpeg',0.9).split(',')[1];
+  const apiKey=sessionStorage.getItem('anthropic_key');
+  if(!apiKey){toast('API key required. Go to Settings.');return;}
   showLoading('Extracting label data via AI...');
-
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 300,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: 'image/jpeg', data: imageData }
-            },
-            {
-              type: 'text',
-              text: 'Extract the following fields from this medication label image and return ONLY a valid JSON object with no extra text: {"ref": "", "sn": "", "psu": "", "lot": "", "exp": ""}. If a field is not visible, use null. The EXP field format is MM-YYYY.'
-            }
-          ]
-        }]
-      })
+    const response=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:300,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:imageData}},{type:'text',text:'Extract the following fields from this medication label image and return ONLY a valid JSON object with no extra text: {"ref":"","sn":"","psu":"","lot":"","exp":""}. If a field is not visible, use null. EXP format: MM-YYYY.'}]}]})
     });
-
-    const data = await response.json();
-    hideLoading();
-
-    if (!response.ok) {
-      const errMsg = data.error?.message || JSON.stringify(data);
-      toast('API Error: ' + errMsg, 6000);
-      console.error('API error:', data);
-      return;
+    const data=await response.json(); hideLoading();
+    if(!response.ok){toast('API Error: '+(data.error?.message||'Unknown'));return;}
+    if(data.content&&data.content[0]){
+      let text=data.content[0].text.trim().replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+      showPreview(normalize(JSON.parse(text))); vibrate();
     }
-
-    if (data.content && data.content[0]) {
-      let text = data.content[0].text.trim();
-      text = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-      const product = JSON.parse(text);
-      showPreview(normalize(product));
-      vibrate();
-    } else {
-      toast('OCR failed — unexpected response format', 4000);
-      console.error('Unexpected response:', data);
-    }
-
-  } catch (err) {
-    hideLoading();
-    console.error(err);
-    toast('OCR error: ' + err.message);
-  }
+  } catch(err){hideLoading();toast('OCR error: '+err.message);}
 }
 
-// ─── TABS ─────────────────────────────────────────────────────────────
 function switchTab(tab) {
-  state.activeTab = tab;
-  ['qr', 'ocr', 'manual'].forEach(t => {
-    document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
-    document.getElementById(`panel-${t}`).style.display = t === tab ? 'block' : 'none';
+  state.activeTab=tab;
+  ['qr','ocr','manual'].forEach(t=>{
+    document.getElementById(`tab-${t}`).classList.toggle('active',t===tab);
+    document.getElementById(`panel-${t}`).style.display=t===tab?'block':'none';
   });
-
-  if (tab === 'qr') {
-    if (state.ocrStream) { state.ocrStream.getTracks().forEach(t => t.stop()); state.ocrStream = null; }
-    startQRCamera();
-  } else if (tab === 'ocr') {
-    if (state.codeReader) { try { state.codeReader.reset(); } catch(e) {} state.codeReader = null; }
-    if (state.videoStream) { state.videoStream.getTracks().forEach(t => t.stop()); state.videoStream = null; }
-    state.scanning = false;
-    startOCRCamera();
-  } else {
-    stopCamera();
-  }
-
+  if(tab==='qr'){if(state.ocrStream){state.ocrStream.getTracks().forEach(t=>t.stop());state.ocrStream=null;}startQRCamera();}
+  else if(tab==='ocr'){if(state.codeReader){try{state.codeReader.reset();}catch(e){}state.codeReader=null;}if(state.videoStream){state.videoStream.getTracks().forEach(t=>t.stop());state.videoStream=null;}state.scanning=false;startOCRCamera();}
+  else{stopCamera();}
   dismissPreview();
 }
 
-// ─── PREVIEW & CONFIRM ────────────────────────────────────────────────
 function showPreview(product) {
-  document.getElementById('p-ref').value = product.ref || '';
-  document.getElementById('p-sn').value = product.sn || '';
-  document.getElementById('p-psu').value = product.psu || '';
-  document.getElementById('p-lot').value = product.lot || '';
-  document.getElementById('p-exp').value = product.exp || '';
-
-  // Highlight empty required fields
-  ['p-sn', 'p-exp'].forEach(id => {
-    const input = document.getElementById(id);
-    input.style.borderBottom = input.value ? '' : '2px solid var(--yellow)';
-    input.style.color = input.value ? '' : 'var(--yellow)';
-  });
-
-  // Show hint if fields are missing
-  const missing = [];
-  if (!product.sn) missing.push('SN');
-  if (!product.exp) missing.push('EXP');
-  if (!product.lot) missing.push('LOT');
-
-  const card = document.getElementById('preview-card');
+  ['ref','sn','psu','lot','exp'].forEach(f=>document.getElementById('p-'+f).value=product[f]||'');
+  const missing=['p-sn','p-exp'].filter(id=>!document.getElementById(id).value);
+  missing.forEach(id=>{const el=document.getElementById(id);el.style.borderBottom='2px solid var(--yellow)';el.style.color='var(--yellow)';});
+  const card=document.getElementById('preview-card');
   card.classList.add('show');
-
-  // Update title with hint
-  const title = card.querySelector('.preview-title');
-  if (missing.length > 0) {
-    title.innerHTML = `📋 Complete missing fields: <span style="color:var(--yellow)">${missing.join(', ')}</span>`;
-  } else {
-    title.innerHTML = '📋 Confirm Extracted Data';
-  }
-
+  const title=card.querySelector('.preview-title');
+  const missingNames=[];
+  if(!product.sn) missingNames.push('SN');
+  if(!product.exp) missingNames.push('EXP');
+  if(!product.lot) missingNames.push('LOT');
+  title.innerHTML = missingNames.length>0 ? `📋 Complete: <span style="color:var(--yellow)">${missingNames.join(', ')}</span>` : '📋 Confirm Extracted Data';
   hideValidationBanner();
 }
 
-function dismissPreview() {
-  document.getElementById('preview-card').classList.remove('show');
-  hideValidationBanner();
-}
+function dismissPreview(){document.getElementById('preview-card').classList.remove('show');hideValidationBanner();}
 
 function confirmProduct() {
-  const product = {
-    ref: document.getElementById('p-ref').value.trim().toUpperCase(),
-    sn:  document.getElementById('p-sn').value.trim(),
-    psu: document.getElementById('p-psu').value.trim(),
-    lot: document.getElementById('p-lot').value.trim().toUpperCase(),
-    exp: document.getElementById('p-exp').value.trim(),
-    timestamp: new Date().toISOString(),
-  };
-
-  if (!product.sn) { toast('SN is required'); return; }
-  addProduct(product);
-  dismissPreview();
+  const product={ref:document.getElementById('p-ref').value.trim().toUpperCase(),sn:document.getElementById('p-sn').value.trim(),psu:document.getElementById('p-psu').value.trim(),lot:document.getElementById('p-lot').value.trim().toUpperCase(),exp:document.getElementById('p-exp').value.trim(),timestamp:new Date().toISOString()};
+  if(!product.sn){toast('SN is required');return;}
+  addProduct(product); dismissPreview();
 }
 
 function submitManual() {
-  const product = {
-    ref: document.getElementById('m-ref').value.trim().toUpperCase(),
-    sn:  document.getElementById('m-sn').value.trim(),
-    psu: document.getElementById('m-psu').value.trim(),
-    lot: document.getElementById('m-lot').value.trim().toUpperCase(),
-    exp: document.getElementById('m-exp').value.trim(),
-    timestamp: new Date().toISOString(),
-  };
-
-  if (!product.sn) { toast('SN is required'); return; }
+  const product={ref:document.getElementById('m-ref').value.trim().toUpperCase(),sn:document.getElementById('m-sn').value.trim(),psu:document.getElementById('m-psu').value.trim(),lot:document.getElementById('m-lot').value.trim().toUpperCase(),exp:document.getElementById('m-exp').value.trim(),timestamp:new Date().toISOString()};
+  if(!product.sn){toast('SN is required');return;}
   addProduct(product);
-
-  // Clear manual fields
-  ['m-ref', 'm-sn', 'm-psu', 'm-lot', 'm-exp'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
+  ['m-ref','m-sn','m-psu','m-lot','m-exp'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('m-sn').focus();
 }
 
-// ─── VALIDATION ───────────────────────────────────────────────────────
 function addProduct(product) {
-  // Validate
-  const status = validateProduct(product);
-  product.status = status;
-
+  product.status=validateProduct(product);
   state.scanned.push(product);
-  updateStats();
-  renderScanList();
-  showValidationBanner(status, product);
-  updateProgress();
-  vibrate();
+  updateStats(); renderScanList(); showValidationBanner(product.status,product); updateProgress(); vibrate();
 }
 
 function validateProduct(product) {
-  const sn = product.sn;
-
-  // Check duplicate first
-  const prevScanned = state.scanned.find(p => p.sn === sn);
-  if (prevScanned) return 'duplicate';
-
-  // In inventory mode — only check expiration
-  if (state.mode === 'inventory') {
-    return isExpired(product.exp) ? 'expired' : 'scanned';
-  }
-
-  // Reconciliation mode — full validation
-  const inIWRS = state.iwrs.has(sn);
-  const expired = isExpired(product.exp);
-  if (expired) return 'expired';
-  if (!inIWRS) return 'unauthorized';
+  if(state.scanned.find(p=>p.sn===product.sn)) return 'duplicate';
+  if(state.mode==='inventory') return isExpired(product.exp)?'expired':'scanned';
+  if(isExpired(product.exp)) return 'expired';
+  if(!state.iwrs.has(product.sn)) return 'unauthorized';
   return 'authorized';
 }
 
 function isExpired(expStr) {
-  if (!expStr) return false;
+  if(!expStr) return false;
   try {
-    const parts = expStr.split(/[-\/]/);
-    let month, year;
-    if (parts[0].length === 4) { year = parseInt(parts[0]); month = parseInt(parts[1]); }
-    else { month = parseInt(parts[0]); year = parseInt(parts[1]); }
-    if (isNaN(month) || isNaN(year)) return false;
-    const expDate = new Date(year, month, 0); // last day of month
-    return expDate < new Date();
-  } catch { return false; }
+    const parts=expStr.split(/[-\/]/); let month,year;
+    if(parts[0].length===4){year=parseInt(parts[0]);month=parseInt(parts[1]);}
+    else{month=parseInt(parts[0]);year=parseInt(parts[1]);}
+    if(isNaN(month)||isNaN(year)) return false;
+    return new Date(year,month,0)<new Date();
+  } catch{return false;}
 }
 
-// ─── STATS & UI ───────────────────────────────────────────────────────
 function updateStats() {
-  const counts = { total: state.scanned.length, authorized: 0, duplicate: 0, unauthorized: 0, expired: 0 };
-  state.scanned.forEach(p => {
-    if (p.status === 'scanned') counts.authorized++; // count scanned as "ok" in inventory mode
-    else if (counts[p.status] !== undefined) counts[p.status]++;
-  });
-  document.getElementById('stat-total').textContent = counts.total;
-  document.getElementById('stat-ok').textContent = counts.authorized;
-  document.getElementById('stat-dup').textContent = counts.duplicate;
-  document.getElementById('stat-unauth').textContent = counts.unauthorized;
-  document.getElementById('stat-exp').textContent = counts.expired;
-
-  // Relabel AUTH chip based on mode
-  document.querySelector('.stat-chip.ok .stat-lbl').textContent =
-    state.mode === 'inventory' ? 'Listed' : 'Auth';
-  document.querySelector('.stat-chip.unauth .stat-lbl').textContent =
-    state.mode === 'inventory' ? '—' : 'Unauth';
+  const c={total:state.scanned.length,authorized:0,duplicate:0,unauthorized:0,expired:0};
+  state.scanned.forEach(p=>{if(p.status==='scanned')c.authorized++;else if(c[p.status]!==undefined)c[p.status]++;});
+  document.getElementById('stat-total').textContent=c.total;
+  document.getElementById('stat-ok').textContent=c.authorized;
+  document.getElementById('stat-dup').textContent=c.duplicate;
+  document.getElementById('stat-unauth').textContent=c.unauthorized;
+  document.getElementById('stat-exp').textContent=c.expired;
+  document.querySelector('.stat-chip.ok .stat-lbl').textContent=state.mode==='inventory'?'Listed':'Auth';
+  document.querySelector('.stat-chip.unauth .stat-lbl').textContent=state.mode==='inventory'?'—':'Unauth';
 }
 
 function updateProgress() {
-  const total = state.iwrs.size;
-  const scanned = state.scanned.filter(p => p.status === 'authorized').length;
-  const pct = total > 0 ? Math.min(100, (scanned / total) * 100) : 0;
-  document.getElementById('progress-bar').style.width = pct + '%';
+  const pct=state.iwrs.size>0?Math.min(100,(state.scanned.filter(p=>p.status==='authorized').length/state.iwrs.size)*100):0;
+  document.getElementById('progress-bar').style.width=pct+'%';
 }
 
-const STATUS_INFO = {
-  authorized:   { icon: '✓', label: 'Authorized' },
-  scanned:      { icon: '●', label: 'Scanned' },
-  duplicate:    { icon: '⚠', label: 'Duplicate' },
-  unauthorized: { icon: '✕', label: 'Unauthorized' },
-  expired:      { icon: '!', label: 'Expired' },
-};
+const STATUS_INFO={authorized:{icon:'✓',label:'Authorized'},scanned:{icon:'●',label:'Scanned'},duplicate:{icon:'⚠',label:'Duplicate'},unauthorized:{icon:'✕',label:'Unauthorized'},expired:{icon:'!',label:'Expired'}};
 
 function renderScanList() {
-  const list = document.getElementById('scan-list');
-  if (state.scanned.length === 0) {
-    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div><p>No products scanned yet.<br>Point the camera at a label or QR code.</p></div>`;
-    return;
-  }
-
-  // Show in reverse (newest first)
-  list.innerHTML = [...state.scanned].reverse().map((p, ri) => {
-    const i = state.scanned.length - 1 - ri;
-    const info = STATUS_INFO[p.status] || { icon: '?', label: p.status };
-    return `
-      <div class="scan-item ${p.status}">
-        <div class="scan-item-status">${info.icon}</div>
-        <div class="scan-item-info">
-          <div class="scan-item-sn">SN: ${p.sn}</div>
-          <div class="scan-item-meta">LOT: ${p.lot || '—'} · EXP: ${p.exp || '—'} · ${info.label}</div>
-        </div>
-        <button class="scan-item-del" onclick="removeProduct(${i})">🗑</button>
-      </div>
-    `;
+  const list=document.getElementById('scan-list');
+  if(state.scanned.length===0){list.innerHTML='<div class="empty-state"><div class="empty-icon">📦</div><p>No products scanned yet.<br>Point the camera at a label or QR code.</p></div>';return;}
+  list.innerHTML=[...state.scanned].reverse().map((p,ri)=>{
+    const i=state.scanned.length-1-ri, info=STATUS_INFO[p.status]||{icon:'?',label:p.status};
+    return `<div class="scan-item ${p.status}"><div class="scan-item-status">${info.icon}</div><div class="scan-item-info"><div class="scan-item-sn">SN: ${p.sn}</div><div class="scan-item-meta">LOT: ${p.lot||'—'} · EXP: ${p.exp||'—'} · ${info.label}</div></div><button class="scan-item-del" onclick="removeProduct(${i})">🗑</button></div>`;
   }).join('');
 }
 
-function removeProduct(index) {
-  state.scanned.splice(index, 1);
-  updateStats();
-  renderScanList();
-  updateProgress();
-  toast('Product removed');
-}
+function removeProduct(i){state.scanned.splice(i,1);updateStats();renderScanList();updateProgress();toast('Product removed');}
 
-function showValidationBanner(status, product) {
-  const banner = document.getElementById('validation-banner');
-  const msgs = {
-    authorized:   `✓ Authorized — SN ${product.sn} confirmed in IWRS`,
-    scanned:      `● Listed — SN ${product.sn} added to inventory`,
-    duplicate:    `⚠ Duplicate — SN ${product.sn} was already scanned`,
-    unauthorized: `✕ Unauthorized — SN ${product.sn} not found in IWRS`,
-    expired:      `! Expired — Product expired ${product.exp}`,
-  };
-  banner.className = `validation-banner show ${status}`;
-  banner.textContent = msgs[status] || status;
-  clearTimeout(banner._timeout);
-  banner._timeout = setTimeout(() => hideValidationBanner(), 4000);
+function showValidationBanner(status,product){
+  const banner=document.getElementById('validation-banner');
+  const msgs={authorized:`✓ Authorized — SN ${product.sn} confirmed in IWRS`,scanned:`● Listed — SN ${product.sn} added`,duplicate:`⚠ Duplicate — SN ${product.sn} already scanned`,unauthorized:`✕ Unauthorized — SN ${product.sn} not in IWRS`,expired:`! Expired — Product expired ${product.exp}`};
+  banner.className=`validation-banner show ${status}`; banner.textContent=msgs[status]||status;
+  clearTimeout(banner._t); banner._t=setTimeout(()=>hideValidationBanner(),4000);
 }
+function hideValidationBanner(){document.getElementById('validation-banner').classList.remove('show');}
 
-function hideValidationBanner() {
-  const banner = document.getElementById('validation-banner');
-  banner.classList.remove('show');
-}
-
-// ─── SUMMARY ─────────────────────────────────────────────────────────
 function buildSummary() {
-  const s = state.session;
-  document.getElementById('sum-subtitle').textContent =
-    `${s.site} · ${s.date} · ${s.cra}`;
-
-  const counts = { total: state.scanned.length, authorized: 0, duplicate: 0, unauthorized: 0, expired: 0 };
-  state.scanned.forEach(p => { if (counts[p.status] !== undefined) counts[p.status]++; });
-
-  document.getElementById('sum-total').textContent = counts.total;
-  document.getElementById('sum-ok').textContent = counts.authorized;
-  document.getElementById('sum-dup').textContent = counts.duplicate;
-  document.getElementById('sum-unauth').textContent = counts.unauthorized;
-  document.getElementById('sum-exp').textContent = counts.expired;
-
-  // Scanned table
-  const tbody = document.getElementById('sum-tbody');
-  tbody.innerHTML = state.scanned.map((p, i) => `
-    <tr class="${p.status}">
-      <td>${i + 1}</td>
-      <td>${p.sn}</td>
-      <td>${p.ref || '—'}</td>
-      <td>${p.lot || '—'}</td>
-      <td>${p.exp || '—'}</td>
-      <td><span class="status-badge ${p.status}">${STATUS_INFO[p.status]?.label || p.status}</span></td>
-    </tr>
-  `).join('');
-
-  // Missing section only relevant in reconciliation mode
-  if (state.mode === 'inventory') {
-    document.getElementById('missing-section').style.display = 'none';
-    return;
-  }
-
-  // Missing (in IWRS but not scanned)
-  const scannedSNs = new Set(state.scanned.map(p => p.sn));
-  const snKeys = ['SN', 'sn', 'Serial Number', 'SerialNumber', 'serial_number'];
-
-  const missing = [];
-  state.iwrs.forEach((row, sn) => {
-    if (!scannedSNs.has(sn)) {
-      missing.push({ sn, row });
-    }
-  });
-
-  if (missing.length > 0) {
-    document.getElementById('missing-section').style.display = 'block';
-    document.getElementById('missing-count-badge').textContent = `${missing.length} items not returned`;
-
-    const refKeys = ['REF', 'ref', 'Reference'];
-    const lotKeys = ['LOT', 'lot', 'LotNumber'];
-    const expKeys = ['EXP', 'exp', 'Expiry', 'ExpirationDate'];
-
-    const getVal = (row, keys) => {
-      for (const k of keys) if (row[k]) return row[k];
-      return '—';
-    };
-
-    document.getElementById('missing-tbody').innerHTML = missing.map(({ sn, row }) => `
-      <tr class="missing">
-        <td>${sn}</td>
-        <td>${getVal(row, refKeys)}</td>
-        <td>${getVal(row, lotKeys)}</td>
-        <td>${getVal(row, expKeys)}</td>
-        <td><span class="status-badge missing">Not Returned</span></td>
-      </tr>
-    `).join('');
-  } else {
-    document.getElementById('missing-section').style.display = 'none';
-  }
+  const s=state.session;
+  document.getElementById('sum-subtitle').textContent=`${s.site} · ${s.date} · ${s.cra}`;
+  const c={total:state.scanned.length,authorized:0,duplicate:0,unauthorized:0,expired:0};
+  state.scanned.forEach(p=>{if(c[p.status]!==undefined)c[p.status]++;});
+  ['total','ok','dup','unauth','exp'].forEach((k,i)=>document.getElementById('sum-'+k).textContent=Object.values(c)[i]);
+  document.getElementById('sum-tbody').innerHTML=state.scanned.map((p,i)=>`<tr class="${p.status}"><td>${i+1}</td><td>${p.sn}</td><td>${p.ref||'—'}</td><td>${p.lot||'—'}</td><td>${p.exp||'—'}</td><td><span class="status-badge ${p.status}">${STATUS_INFO[p.status]?.label||p.status}</span></td></tr>`).join('');
+  if(state.mode==='inventory'){document.getElementById('missing-section').style.display='none';return;}
+  const scannedSNs=new Set(state.scanned.map(p=>p.sn));
+  const missing=[]; state.iwrs.forEach((row,sn)=>{if(!scannedSNs.has(sn))missing.push({sn,row});});
+  if(missing.length>0){
+    document.getElementById('missing-section').style.display='block';
+    document.getElementById('missing-count-badge').textContent=`${missing.length} items not returned`;
+    const getVal=(row,keys)=>{for(const k of keys)if(row[k])return row[k];return '—';};
+    document.getElementById('missing-tbody').innerHTML=missing.map(({sn,row})=>`<tr class="missing"><td>${sn}</td><td>${getVal(row,['REF','ref'])}</td><td>${getVal(row,['LOT','lot'])}</td><td>${getVal(row,['EXP','exp','Expiry'])}</td><td><span class="status-badge missing">Not Returned</span></td></tr>`).join('');
+  } else { document.getElementById('missing-section').style.display='none'; }
 }
 
-// ─── EXPORT ───────────────────────────────────────────────────────────
 function exportExcel() {
-  const s = state.session;
-  const wb = XLSX.utils.book_new();
-
-  // Sheet 1: Scanned Products
-  const scannedData = [
-    ['#', 'SN', 'REF', 'PSU', 'LOT', 'EXP', 'Status', 'Timestamp']
-  ].concat(state.scanned.map((p, i) => [
-    i + 1, p.sn, p.ref || '', p.psu || '', p.lot || '', p.exp || '',
-    STATUS_INFO[p.status]?.label || p.status,
-    p.timestamp
-  ]));
-
-  const ws1 = XLSX.utils.aoa_to_sheet(scannedData);
-  ws1['!cols'] = [4, 14, 12, 8, 12, 10, 14, 22].map(w => ({ wch: w }));
-  XLSX.utils.book_append_sheet(wb, ws1, 'Scanned Products');
-
-  // Sheet 2: Missing from Scan
-  const scannedSNs = new Set(state.scanned.map(p => p.sn));
-  const missingRows = [['SN', 'REF', 'LOT', 'EXP', 'Status']];
-  state.iwrs.forEach((row, sn) => {
-    if (!scannedSNs.has(sn)) {
-      const getVal = (keys) => { for (const k of keys) if (row[k]) return row[k]; return ''; };
-      missingRows.push([
-        sn,
-        getVal(['REF', 'ref', 'Reference']),
-        getVal(['LOT', 'lot']),
-        getVal(['EXP', 'exp', 'Expiry']),
-        'Not Returned'
-      ]);
-    }
-  });
-  const ws2 = XLSX.utils.aoa_to_sheet(missingRows);
-  XLSX.utils.book_append_sheet(wb, ws2, 'Not Returned');
-
-  // Sheet 3: Session Info
-  const sessionData = [
-    ['Field', 'Value'],
-    ['Site', s.site],
-    ['Protocol / Study ID', s.protocol || ''],
-    ['CRA', s.cra],
-    ['Visit Date', s.date],
-    ['Export Date', new Date().toISOString()],
-    [],
-    ['Summary', ''],
-    ['Total Scanned', state.scanned.length],
-    ['Authorized', state.scanned.filter(p => p.status === 'authorized').length],
-    ['Duplicates', state.scanned.filter(p => p.status === 'duplicate').length],
-    ['Unauthorized', state.scanned.filter(p => p.status === 'unauthorized').length],
-    ['Expired', state.scanned.filter(p => p.status === 'expired').length],
-    ['Not Returned (in IWRS)', missingRows.length - 1],
-  ];
-  const ws3 = XLSX.utils.aoa_to_sheet(sessionData);
-  XLSX.utils.book_append_sheet(wb, ws3, 'Session Info');
-
-  const filename = `MedScan_${s.site.replace(/\s+/g, '_')}_${s.date}.xlsx`;
-  XLSX.writeFile(wb, filename);
+  const s=state.session, wb=XLSX.utils.book_new();
+  const scannedData=[['#','SN','REF','PSU','LOT','EXP','Status','Timestamp']].concat(state.scanned.map((p,i)=>[i+1,p.sn,p.ref||'',p.psu||'',p.lot||'',p.exp||'',STATUS_INFO[p.status]?.label||p.status,p.timestamp]));
+  const ws1=XLSX.utils.aoa_to_sheet(scannedData); ws1['!cols']=[4,14,12,8,12,10,14,22].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws1,'Scanned Products');
+  const scannedSNs=new Set(state.scanned.map(p=>p.sn));
+  const missingRows=[['SN','REF','LOT','EXP','Status']];
+  state.iwrs.forEach((row,sn)=>{if(!scannedSNs.has(sn)){const g=(keys)=>{for(const k of keys)if(row[k])return row[k];return '';};missingRows.push([sn,g(['REF','ref']),g(['LOT','lot']),g(['EXP','exp','Expiry']),'Not Returned']);}});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(missingRows),'Not Returned');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Field','Value'],['Site',s.site],['Protocol',s.protocol||''],['CRA',s.cra],['Visit Date',s.date],['Export Date',new Date().toISOString()],[],['Total Scanned',state.scanned.length],['Authorized',state.scanned.filter(p=>p.status==='authorized').length],['Duplicates',state.scanned.filter(p=>p.status==='duplicate').length],['Unauthorized',state.scanned.filter(p=>p.status==='unauthorized').length],['Expired',state.scanned.filter(p=>p.status==='expired').length],['Not Returned',missingRows.length-1]]),'Session Info');
+  XLSX.writeFile(wb,`MedScan_${s.site.replace(/\s+/g,'_')}_${s.date}.xlsx`);
   toast('✓ Excel report downloaded');
 }
 
-// ─── UTILITIES ────────────────────────────────────────────────────────
-function toast(msg, duration = 2800) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(el._timeout);
-  el._timeout = setTimeout(() => el.classList.remove('show'), duration);
+// ════════════════════════════════════════════════════════
+//  PHARMACY INVENTORY
+// ════════════════════════════════════════════════════════
+
+const VISIT_ORDER = {
+  'Screening':0,'Randomization - Day 1 Visit':1,'Visit 3 - Week 4':3,'Visit 4 - Week 8':4,
+  'Visit 5 - Week 12':5,'Visit 6 - Week 16':6,'Visit 7 - Week 20':7,'Visit 8 - Week 24':8,
+  'Subject Kit Replacement':8.5,'Visit 9 - Week 36':9,'Visit 10 - Week 48':10,
+  'Visit 11 - Week 60':11,'Visit 12 - Week 72':12,'Visit 13 - Week 84':13,
+  'Visit 14 - Week 96':14,'End of Treatment':99
+};
+
+async function handlePharmUpload(report, event) {
+  const file = event.target.files[0]; if (!file) return;
+  showLoading(`Parsing Report ${report.toUpperCase()}…`);
+  try {
+    const data = await file.arrayBuffer();
+    let rows;
+    if (file.name.toLowerCase().endsWith('.csv')) {
+      rows = parseCSV(new TextDecoder().decode(data));
+    } else {
+      const wb = XLSX.read(data, {type:'array'});
+      rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+    }
+    state.pharm[report] = rows;
+    hideLoading();
+
+    // Update UI
+    const zone  = document.getElementById(`${report}-zone`);
+    const label = document.getElementById(`${report}-label`);
+    zone.classList.add('loaded');
+    label.textContent = `✅ ${file.name} (${rows.length} rows)`;
+
+    // Enable analyze button when R26 + R28 are loaded
+    document.getElementById('pharm-analyze-btn').disabled =
+      !(state.pharm.r26 && state.pharm.r28);
+
+    toast(`✓ ${report.toUpperCase()}: ${rows.length} rows loaded`);
+  } catch(err) { hideLoading(); toast('Error parsing file: ' + err.message); }
 }
 
-function showLoading(msg = 'Processing...') {
-  document.getElementById('loading-msg').textContent = msg;
-  document.getElementById('loading-overlay').classList.add('show');
+function parseDate(val) {
+  if (!val || val === 'n/a' || val === '') return null;
+  if (val instanceof Date) return val;
+  const s = String(val).trim();
+  // Try "27 Feb 2026"
+  const m = s.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
+  if (m) {
+    const months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+    return new Date(parseInt(m[3]), months[m[2]], parseInt(m[1]));
+  }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
 }
 
-function hideLoading() {
-  document.getElementById('loading-overlay').classList.remove('show');
+function fmtDate(d) {
+  if (!d) return '—';
+  return d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
 }
 
-function vibrate() {
-  if (navigator.vibrate) navigator.vibrate([50]);
+function runPharmacyAnalysis() {
+  if (!state.pharm.r26 || !state.pharm.r28) { toast('R26 and R28 required'); return; }
+  showLoading('Analyzing inventory…');
+
+  setTimeout(() => {
+    try {
+      const r26 = state.pharm.r26;
+      const r28 = state.pharm.r28;
+      const r27 = state.pharm.r27 || [];
+
+      // ── Parse R28: kit → dispensing info ─────────────────
+      // Headers: Subject Number, Kit Number(s) Assigned, Visit Name, Visit Date
+      const h28 = Object.keys(r28[0] || {});
+      const findCol = (rows, ...candidates) => {
+        const h = Object.keys(rows[0] || {});
+        for (const c of candidates) { const f = h.find(k => k.toLowerCase().includes(c.toLowerCase())); if (f) return f; }
+        return null;
+      };
+
+      const kitCol    = findCol(r28, 'Kit Number', 'Kit Number(s)');
+      const visitCol  = findCol(r28, 'Visit Name');
+      const dateCol   = findCol(r28, 'Visit Date');
+      const subjCol28 = findCol(r28, 'Subject Number');
+
+      const kitDispensed  = {};  // kit_num → {subject, visit, visitOrder, date}
+      const subjLastVisit = {};  // subject → {visit, visitOrder, date}
+
+      r28.forEach(row => {
+        const subj  = row[subjCol28];
+        const visit = row[visitCol];
+        const date  = parseDate(row[dateCol]);
+        const kit   = row[kitCol];
+        const vo    = VISIT_ORDER[visit] !== undefined ? VISIT_ORDER[visit] : -1;
+
+        if (date && subj) {
+          if (!subjLastVisit[subj] || date > subjLastVisit[subj].date) {
+            subjLastVisit[subj] = { visit, visitOrder: vo, date };
+          }
+        }
+        if (kit && String(kit) !== 'n/a' && String(kit) !== '') {
+          kitDispensed[String(kit)] = { subject: subj, visit, visitOrder: vo, date };
+        }
+      });
+
+      // ── Parse R27: subject → next visit ──────────────────
+      const subjNextVisit = {};
+      if (r27.length > 0) {
+        const subjCol27   = findCol(r27, 'Subject Number');
+        const nextVisCol  = findCol(r27, 'Next Expected Visit');
+        const nextDateCol = findCol(r27, 'Next Expected Visit Date');
+        r27.forEach(row => {
+          const s = row[subjCol27];
+          if (s) subjNextVisit[s] = { visit: row[nextVisCol] || '', date: parseDate(row[nextDateCol]) };
+        });
+      }
+
+      // ── Parse R26: classify each kit ─────────────────────
+      const treatCol  = findCol(r26, 'Treatment Number');
+      const pkgCol    = findCol(r26, 'Packaging Number');
+      const psuCol    = findCol(r26, 'PSU Number');
+      const expCol    = findCol(r26, 'Expiry Date');
+      const kitTypeCol= findCol(r26, 'Kit Type');
+      const subjCol26 = findCol(r26, 'Subject Number', 'Part 5: Subject');
+      const site3Ack  = findCol(r26, 'Date of Acknowledgement of Receipt on Site', 'Part 3: Date of Acknowledgement');
+      const depotAck  = findCol(r26, 'Date of Ack. of Receipt at Local Depot', 'Part 5: Date of Ack');
+      const destroyed = findCol(r26, 'Date of Destruction', 'Part 5: Date of Destruction');
+
+      // Fallback: use the column that contains "acknowledgement" in part 3
+      const ackCol = r26.length > 0 ? Object.keys(r26[0]).find(k => k.toLowerCase().includes('acknowledgement') && k.toLowerCase().includes('receipt') && k.toLowerCase().includes('site')) : null;
+
+      const classifiedKits = [];
+
+      r26.forEach(row => {
+        const treatNum  = String(row[treatCol] || '').trim();
+        const pkg       = String(row[pkgCol] || '').trim();
+        const psu       = String(row[psuCol] || '').trim();
+        const expiry    = String(row[expCol] || '').trim();
+        const kitType   = String(row[kitTypeCol] || '').trim();
+        const subj26    = row[subjCol26];
+
+        const received  = Object.keys(row).some(k =>
+          k.toLowerCase().includes('acknowledgement') &&
+          k.toLowerCase().includes('receipt') &&
+          k.toLowerCase().includes('site') &&
+          row[k] && String(row[k]).trim() !== '' && String(row[k]).trim() !== 'n/a'
+        );
+
+        const hasDepot  = Object.keys(row).some(k =>
+          k.toLowerCase().includes('depot') &&
+          row[k] && String(row[k]).trim() !== '' && String(row[k]).trim() !== 'n/a'
+        );
+        const hasDestroy = Object.keys(row).some(k =>
+          k.toLowerCase().includes('destruction') &&
+          row[k] && String(row[k]).trim() !== '' && String(row[k]).trim() !== 'n/a'
+        );
+
+        const dispensed = subj26 && String(subj26).trim() !== '' && String(subj26).trim() !== 'n/a';
+
+        let status, color, note, nextInfo = '';
+
+        if (!received) {
+          status = 'not_received'; color = 'gray';
+          note = 'Awaiting site acknowledgement';
+        } else if (hasDepot || hasDestroy) {
+          status = 'left_site'; color = 'blue';
+          note = hasDestroy ? 'Confirmed destruction' : 'Returned to local depot';
+        } else if (!dispensed) {
+          status = 'available'; color = 'green';
+          note = 'Never dispensed — should be in pharmacy/fridge';
+        } else {
+          const kd = kitDispensed[treatNum];
+          if (!kd) {
+            status = 'dispensed_unknown'; color = 'yellow';
+            note = `Dispensed to ${subj26}, no visit data found`;
+          } else {
+            const lv = subjLastVisit[kd.subject];
+            if (lv && lv.visitOrder > kd.visitOrder) {
+              status = 'returned'; color = 'yellow';
+              note   = `Dispensed at ${kd.visit}. Patient later attended ${lv.visit} — likely returned.`;
+            } else {
+              status = 'with_patient'; color = 'red';
+              const nv = subjNextVisit[kd.subject];
+              const dispDateStr = fmtDate(kd.date);
+              nextInfo = nv ? `${nv.visit}${nv.date ? ' · ' + fmtDate(nv.date) : ''}` : '';
+              note = `Dispensed at ${kd.visit} on ${dispDateStr}. Return expected at next visit.`;
+            }
+          }
+        }
+
+        classifiedKits.push({
+          treatNum, pkg, psu, expiry, kitType,
+          subject: dispensed ? String(subj26) : null,
+          dispensedVisit: kitDispensed[treatNum]?.visit || null,
+          dispensedDate:  kitDispensed[treatNum]?.date  || null,
+          nextVisitInfo: nextInfo,
+          status, color, note,
+          rawRow: row
+        });
+      });
+
+      state.pharm.kits = classifiedKits;
+      hideLoading();
+      renderPharmResults();
+
+    } catch(err) {
+      hideLoading();
+      console.error(err);
+      toast('Analysis error: ' + err.message);
+    }
+  }, 50);
 }
 
-// ─── DRAG & DROP for IWRS ─────────────────────────────────────────────
-const uploadZone = document.getElementById('upload-zone');
-uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
-uploadZone.addEventListener('drop', e => {
-  e.preventDefault();
-  uploadZone.classList.remove('dragover');
-  const file = e.dataTransfer.files[0];
-  if (file) handleIWRSUpload({ target: { files: [file] } });
-});
+function renderPharmResults() {
+  const kits = state.pharm.kits;
+  const counts = {
+    available: kits.filter(k => k.status === 'available').length,
+    returned:  kits.filter(k => k.status === 'returned' || k.status === 'dispensed_unknown').length,
+    patient:   kits.filter(k => k.status === 'with_patient').length,
+  };
+
+  // Summary stats
+  document.getElementById('pharm-stats').innerHTML = `
+    <div class="pharm-stat s-green"><div class="pn">${counts.available}</div><div class="pl">In Pharmacy<br>Available</div></div>
+    <div class="pharm-stat s-yellow"><div class="pn">${counts.returned}</div><div class="pl">In Pharmacy<br>Returned</div></div>
+    <div class="pharm-stat s-red"><div class="pn">${counts.patient}</div><div class="pl">With<br>Patient</div></div>
+  `;
+  document.getElementById('pharm-subtitle').textContent =
+    `${counts.available + counts.returned} kits expected in pharmacy · ${counts.patient} pending return`;
+
+  // Show results view
+  document.getElementById('pharm-setup-view').style.display = 'none';
+  const rv = document.getElementById('pharm-results-view');
+  rv.style.display = 'flex';
+
+  filterKits('all', document.querySelector('#pharm-filter-bar .filter-pill'));
+}
+
+function filterKits(filter, el) {
+  state.pharm.currentFilter = filter;
+  document.querySelectorAll('#pharm-filter-bar .filter-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+
+  const show = ['available','not_received','left_site','dispensed_unknown','returned','with_patient'];
+  const map = {
+    all:       show,
+    available: ['available'],
+    returned:  ['returned','dispensed_unknown'],
+    patient:   ['with_patient'],
+  };
+
+  const filtered = state.pharm.kits.filter(k => (map[filter] || show).includes(k.status));
+  renderKitList(filtered);
+}
+
+function renderKitList(kits) {
+  const container = document.getElementById('pharm-kit-list');
+  if (kits.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><p>No kits match this filter.</p></div>';
+    return;
+  }
+
+  const colorClass = { green:'k-green', yellow:'k-yellow', red:'k-red', gray:'', blue:'' };
+  const dotClass   = { green:'d-green', yellow:'d-yellow', red:'d-red', gray:'', blue:'' };
+  const txtClass   = { green:'t-green', yellow:'t-yellow', red:'t-red', gray:'', blue:'' };
+
+  const statusLabel = {
+    available:        '🟢 In pharmacy — never dispensed',
+    returned:         '🟡 In pharmacy — returned by patient',
+    dispensed_unknown:'🟡 Dispensed — verify status',
+    with_patient:     '🔴 With patient — return pending',
+    not_received:     '⬜ Not yet received on site',
+    left_site:        '↩ Returned to depot / destroyed',
+  };
+
+  container.innerHTML = kits.map((k, i) => `
+    <div class="kit-card ${colorClass[k.color]||''}" onclick="showKitDetail(${state.pharm.kits.indexOf(k)})">
+      <div class="kit-card-top">
+        <span class="kit-num">Kit ${k.treatNum}</span>
+        <span class="kit-ip">${k.pkg}</span>
+      </div>
+      <div class="kit-meta">
+        <div class="kit-meta-field">PSU: <b>${k.psu || '—'}</b></div>
+        <div class="kit-meta-field">EXP: <b>${k.expiry || '—'}</b></div>
+        ${k.subject ? `<div class="kit-meta-field">Subject: <b>${k.subject}</b></div>` : ''}
+        ${k.dispensedVisit ? `<div class="kit-meta-field">Dispensed: <b>${k.dispensedVisit.replace('Visit ','V').replace(' - Week','w')}</b></div>` : ''}
+      </div>
+      <div class="kit-status-row">
+        <div class="status-dot ${dotClass[k.color]||''}"></div>
+        <span class="status-text ${txtClass[k.color]||''}">${statusLabel[k.status]||k.status}</span>
+        ${k.nextVisitInfo ? `<span class="kit-next">${k.nextVisitInfo}</span>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function showKitDetail(idx) {
+  const k = state.pharm.kits[idx];
+  document.getElementById('kd-title').textContent = `Kit ${k.treatNum}`;
+  const statusLabel = {
+    available:'🟢 In pharmacy — never dispensed',returned:'🟡 In pharmacy — returned by patient',
+    dispensed_unknown:'🟡 Dispensed — verify status',with_patient:'🔴 With patient',
+    not_received:'⬜ Not yet received',left_site:'↩ Returned to depot / destroyed'
+  };
+  document.getElementById('kd-content').innerHTML = `
+    <div class="detail-row"><span class="detail-lbl">Status</span><span class="detail-val">${statusLabel[k.status]||k.status}</span></div>
+    <div class="detail-row"><span class="detail-lbl">Kit Number</span><span class="detail-val">${k.treatNum}</span></div>
+    <div class="detail-row"><span class="detail-lbl">Packaging (IP)</span><span class="detail-val">${k.pkg||'—'}</span></div>
+    <div class="detail-row"><span class="detail-lbl">PSU</span><span class="detail-val">${k.psu||'—'}</span></div>
+    <div class="detail-row"><span class="detail-lbl">Expiry</span><span class="detail-val">${k.expiry||'—'}</span></div>
+    <div class="detail-row"><span class="detail-lbl">Kit Type</span><span class="detail-val">${k.kitType||'—'}</span></div>
+    ${k.subject ? `<div class="detail-row"><span class="detail-lbl">Subject</span><span class="detail-val">${k.subject}</span></div>` : ''}
+    ${k.dispensedVisit ? `<div class="detail-row"><span class="detail-lbl">Dispensed At</span><span class="detail-val">${k.dispensedVisit}</span></div>` : ''}
+    ${k.dispensedDate ? `<div class="detail-row"><span class="detail-lbl">Dispensed On</span><span class="detail-val">${fmtDate(k.dispensedDate)}</span></div>` : ''}
+    ${k.nextVisitInfo ? `<div class="detail-row"><span class="detail-lbl">Next Visit</span><span class="detail-val">${k.nextVisitInfo}</span></div>` : ''}
+    <div class="detail-row"><span class="detail-lbl">Notes</span><span class="detail-val" style="color:var(--text-muted);font-size:12px;">${k.note}</span></div>
+  `;
+  document.getElementById('kit-detail-modal').classList.add('show');
+}
+
+function resetPharmacy() {
+  state.pharm = { r26:null, r27:null, r28:null, kits:[], currentFilter:'all' };
+  ['r26','r27','r28'].forEach(r => {
+    document.getElementById(`${r}-zone`).classList.remove('loaded');
+    document.getElementById(`${r}-label`).textContent = `Upload Report ${r.toUpperCase()}`;
+    document.getElementById(`${r}-file`).value = '';
+  });
+  document.getElementById('pharm-analyze-btn').disabled = true;
+  document.getElementById('pharm-setup-view').style.display = 'block';
+  document.getElementById('pharm-results-view').style.display = 'none';
+}
+
+function exportPharmReport() {
+  const wb = XLSX.utils.book_new();
+  const kits = state.pharm.kits;
+  const today = new Date().toISOString().split('T')[0];
+
+  const statusLabel = {
+    available:'In pharmacy - Available',returned:'In pharmacy - Returned by patient',
+    dispensed_unknown:'Dispensed - Verify status',with_patient:'With patient - Return pending',
+    not_received:'Not yet received',left_site:'Returned to depot / Destroyed'
+  };
+
+  // Sheet 1: Pharmacy + Patient kits
+  const pharmKits = kits.filter(k => ['available','returned','dispensed_unknown','with_patient'].includes(k.status));
+  const data1 = [['Status','Kit No.','PSU','Packaging (IP)','Expiry','Kit Type','Subject','Dispensed At','Dispensed Date','Next Visit','Notes']];
+  pharmKits.forEach(k => data1.push([
+    statusLabel[k.status]||k.status, k.treatNum, k.psu, k.pkg, k.expiry, k.kitType,
+    k.subject||'', k.dispensedVisit||'', k.dispensedDate?fmtDate(k.dispensedDate):'',
+    k.nextVisitInfo||'', k.note
+  ]));
+  const ws1 = XLSX.utils.aoa_to_sheet(data1);
+  ws1['!cols'] = [28,10,8,14,12,22,14,24,14,28,45].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, 'Pharmacy Inventory');
+
+  // Sheet 2: Summary
+  const counts = {available:0,returned:0,with_patient:0,left_site:0,not_received:0};
+  kits.forEach(k => { if(counts[k.status]!==undefined) counts[k.status]++; });
+  const ws2 = XLSX.utils.aoa_to_sheet([
+    ['MEDICATION RECONCILIATION SUMMARY'], [''],
+    ['Status','Count','Description'],
+    ['🟢 In pharmacy - Available', counts.available, 'Never dispensed'],
+    ['🟡 In pharmacy - Returned', counts.returned, 'Dispensed, patient had subsequent visits'],
+    ['🔴 With patient - Return pending', counts.with_patient, 'Dispensed at most recent visit'],
+    ['↩ Left site', counts.left_site, 'Returned to depot or destroyed'],
+    ['⬜ Not yet received', counts.not_received, 'Awaiting site acknowledgement'],
+    [''],
+    ['Kits expected in pharmacy', counts.available + counts.returned, ''],
+    ['Report date', today, ''],
+  ]);
+  XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
+
+  XLSX.writeFile(wb, `MedScan_PharmacyInventory_${today}.xlsx`);
+  toast('✓ Pharmacy report exported');
+}
+
+// ════════════════════════════════════════════════════════
+//  UTILITIES
+// ════════════════════════════════════════════════════════
+function toast(msg, duration=2800) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),duration);
+}
+function showLoading(msg='Processing…'){document.getElementById('loading-msg').textContent=msg;document.getElementById('loading-overlay').classList.add('show');}
+function hideLoading(){document.getElementById('loading-overlay').classList.remove('show');}
+function vibrate(){if(navigator.vibrate)navigator.vibrate([50]);}
+
+// Drag & drop for IWRS
+const uploadZone=document.getElementById('upload-zone');
+uploadZone.addEventListener('dragover',e=>{e.preventDefault();uploadZone.classList.add('dragover');});
+uploadZone.addEventListener('dragleave',()=>uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop',e=>{e.preventDefault();uploadZone.classList.remove('dragover');const f=e.dataTransfer.files[0];if(f)handleIWRSUpload({target:{files:[f]}});});
 </script>
 </body>
 </html>
