@@ -781,17 +781,38 @@ async function handleIWRSUpload(event) {
       rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
     }
     state.iwrs.clear(); state.iwrsRaw = rows;
-    const snKeys = ['SN','sn','Serial Number','SerialNumber','serial_number'];
-    let snKey = null;
-    if (rows.length > 0) snKey = snKeys.find(k => k in rows[0]) || Object.keys(rows[0])[1];
-    rows.forEach(row => { const sn = String(row[snKey]||'').trim(); if (sn) state.iwrs.set(sn, row); });
+
+    // Auto-detect SN and LOT columns — supports standard names AND raw IWRS exports
+    const SN_ALIASES  = ['SN','sn','Serial Number','SerialNumber','serial_number',
+                         'Kit Number(s) Assigned','Kit Number','KitNumber','kit_number'];
+    const LOT_ALIASES = ['LOT','lot','Lot Number','LotNumber','lot_number',
+                         'Lot Number(s) Assigned','Lot Number(s)'];
+
+    let snKey = null, lotKey = null;
+    if (rows.length > 0) {
+      const firstRow = rows[0];
+      snKey  = SN_ALIASES.find(k => k in firstRow)
+               || Object.keys(firstRow).find(k => k.toLowerCase().includes('kit') && k.toLowerCase().includes('assign'))
+               || Object.keys(firstRow).find(k => k.toLowerCase().includes('kit'))
+               || Object.keys(firstRow)[1];
+      lotKey = LOT_ALIASES.find(k => k in firstRow)
+               || Object.keys(firstRow).find(k => k.toLowerCase().includes('lot') && k.toLowerCase().includes('assign'))
+               || Object.keys(firstRow).find(k => k.toLowerCase().includes('lot'));
+    }
+    state.iwrsSnKey  = snKey;
+    state.iwrsLotKey = lotKey;
+
+    rows.forEach(row => {
+      const sn = String(row[snKey]||'').trim();
+      if (sn && sn !== 'n/a') state.iwrs.set(sn, row);
+    });
     hideLoading();
     if (state.iwrs.size === 0) { toast('⚠ No SN data found. Check column headers.'); return; }
     document.getElementById('upload-zone').classList.add('loaded');
     document.getElementById('upload-label').textContent = `✅ ${file.name}`;
-    document.getElementById('upload-hint').textContent  = `${state.iwrs.size} products loaded`;
+    document.getElementById('upload-hint').textContent  = `${state.iwrs.size} kits loaded · SN ← "${state.iwrsSnKey}"${state.iwrsLotKey ? ' · LOT ← "' + state.iwrsLotKey + '"' : ''}`;
     checkSetupReady();
-    toast(`✓ ${state.iwrs.size} products loaded`);
+    toast(`✓ ${state.iwrs.size} kits loaded — SN: "${state.iwrsSnKey}"`);
   } catch (err) { hideLoading(); toast('Error: ' + err.message); }
 }
 
@@ -1091,7 +1112,7 @@ function exportExcel() {
   XLSX.utils.book_append_sheet(wb,ws1,'Scanned Products');
   const scannedSNs=new Set(state.scanned.map(p=>p.sn));
   const missingRows=[['SN','REF','LOT','EXP','Status']];
-  state.iwrs.forEach((row,sn)=>{if(!scannedSNs.has(sn)){const g=(keys)=>{for(const k of keys)if(row[k])return row[k];return '';};missingRows.push([sn,g(['REF','ref']),g(['LOT','lot']),g(['EXP','exp','Expiry']),'Not Returned']);}});
+  state.iwrs.forEach((row,sn)=>{if(!scannedSNs.has(sn)){const g=(keys)=>{for(const k of keys)if(row[k])return row[k];return '';};missingRows.push([sn,g(['REF','ref']),g(['LOT','lot', 'Lot Number(s) Assigned', 'Lot Number(s)']),g(['EXP','exp','Expiry']),'Not Returned']);}});
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(missingRows),'Not Returned');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Field','Value'],['Site',s.site],['Protocol',s.protocol||''],['CRA',s.cra],['Visit Date',s.date],['Export Date',new Date().toISOString()],[],['Total Scanned',state.scanned.length],['Authorized',state.scanned.filter(p=>p.status==='authorized').length],['Duplicates',state.scanned.filter(p=>p.status==='duplicate').length],['Unauthorized',state.scanned.filter(p=>p.status==='unauthorized').length],['Expired',state.scanned.filter(p=>p.status==='expired').length],['Not Returned',missingRows.length-1]]),'Session Info');
   XLSX.writeFile(wb,`MedScan_${s.site.replace(/\s+/g,'_')}_${s.date}.xlsx`);
