@@ -589,34 +589,34 @@
     <div class="alert-strip">
       <span>ℹ</span>
       <div>
-        <b>Required: R26 + R28</b><br>
-        R26 = Kit inventory &nbsp;·&nbsp; R28 = Visit &amp; dispensing history<br>
-        <span style="color:var(--text-muted);">R27 = Optional — adds next expected visit dates</span>
+        <b>Required: Study Counts Supply + Subject Visit Summary</b><br>
+        Study Counts Supply = Kit inventory &nbsp;·&nbsp; Subject Visit Summary = Dispensing history<br>
+        <span style="color:var(--text-muted);">Site Supply Summary = Optional — adds next expected visit dates</span>
       </div>
     </div>
 
-    <p class="section-label">Report 26 — Kit Inventory <span style="color:var(--red);">*</span></p>
+    <p class="section-label">Study Counts Supply <span style="color:var(--red);">*</span></p>
     <div class="upload-zone" id="r26-zone">
       <input type="file" id="r26-file" accept=".xlsx,.csv" onchange="handlePharmUpload('r26', event)">
       <div class="upload-icon">📦</div>
-      <div class="upload-label" id="r26-label">Upload Report 26</div>
-      <div class="upload-hint">Kit inventory &amp; shipment lifecycle data</div>
+      <div class="upload-label" id="r26-label">Upload Study Counts Supply</div>
+      <div class="upload-hint">Study inventory report</div>
     </div>
 
-    <p class="section-label" style="margin-top:20px;">Report 28 — Visit History <span style="color:var(--red);">*</span></p>
+    <p class="section-label" style="margin-top:20px;">Subject Visit Summary <span style="color:var(--red);">*</span></p>
     <div class="upload-zone" id="r28-zone">
       <input type="file" id="r28-file" accept=".xlsx,.csv" onchange="handlePharmUpload('r28', event)">
       <div class="upload-icon">📋</div>
-      <div class="upload-label" id="r28-label">Upload Report 28</div>
-      <div class="upload-hint">Visit log with kit dispensing history</div>
+      <div class="upload-label" id="r28-label">Upload Subject Visit Summary</div>
+      <div class="upload-hint">Visit log &amp; kit dispensing history</div>
     </div>
 
-    <p class="section-label" style="margin-top:20px;">Report 27 — Subject Status <span style="color:var(--text-muted); font-size:10px;">(optional)</span></p>
+    <p class="section-label" style="margin-top:20px;">Site Supply Summary <span style="color:var(--text-muted); font-size:10px;">(optional)</span></p>
     <div class="upload-zone optional" id="r27-zone">
       <input type="file" id="r27-file" accept=".xlsx,.csv" onchange="handlePharmUpload('r27', event)">
       <div class="upload-icon">👤</div>
-      <div class="upload-label" id="r27-label" style="color:var(--text-muted);">Upload Report 27</div>
-      <div class="upload-hint">Subject list with next expected visit dates</div>
+      <div class="upload-label" id="r27-label" style="color:var(--text-muted);">Upload Site Supply Summary</div>
+      <div class="upload-hint">Site inventory report · adds next visit dates</div>
     </div>
 
     <button class="btn btn-primary" id="pharm-analyze-btn" style="margin-top:24px;" onclick="runPharmacyAnalysis()" disabled>
@@ -1133,7 +1133,7 @@ const VISIT_ORDER = {
 
 async function handlePharmUpload(report, event) {
   const file = event.target.files[0]; if (!file) return;
-  showLoading(`Parsing Report ${report.toUpperCase()}…`);
+  showLoading(`Parsing ${report === 'r26' ? 'Study Counts Supply' : report === 'r28' ? 'Subject Visit Summary' : 'Site Supply Summary'}…`);
   try {
     const data = await file.arrayBuffer();
     let rows;
@@ -1152,11 +1152,11 @@ async function handlePharmUpload(report, event) {
     zone.classList.add('loaded');
     label.textContent = `✅ ${file.name} (${rows.length} rows)`;
 
-    // Enable analyze button when R26 + R28 are loaded
+    // Enable analyze button when r26 + r28 are loaded
     document.getElementById('pharm-analyze-btn').disabled =
       !(state.pharm.r26 && state.pharm.r28);
 
-    toast(`✓ ${report.toUpperCase()}: ${rows.length} rows loaded`);
+    toast(`✓ ${rows.length} rows loaded`);
   } catch(err) { hideLoading(); toast('Error parsing file: ' + err.message); }
 }
 
@@ -1180,7 +1180,7 @@ function fmtDate(d) {
 }
 
 function runPharmacyAnalysis() {
-  if (!state.pharm.r26 || !state.pharm.r28) { toast('R26 and R28 required'); return; }
+  if (!state.pharm.r26 || !state.pharm.r28) { toast('Study Counts Supply and Subject Visit Summary required'); return; }
   showLoading('Analyzing inventory…');
 
   setTimeout(() => {
@@ -1190,8 +1190,6 @@ function runPharmacyAnalysis() {
       const r27 = state.pharm.r27 || [];
 
       // ── Parse R28: kit → dispensing info ─────────────────
-      // Headers: Subject Number, Kit Number(s) Assigned, Visit Name, Visit Date
-      const h28 = Object.keys(r28[0] || {});
       const findCol = (rows, ...candidates) => {
         const h = Object.keys(rows[0] || {});
         for (const c of candidates) { const f = h.find(k => k.toLowerCase().includes(c.toLowerCase())); if (f) return f; }
@@ -1242,12 +1240,6 @@ function runPharmacyAnalysis() {
       const expCol    = findCol(r26, 'Expiry Date');
       const kitTypeCol= findCol(r26, 'Kit Type');
       const subjCol26 = findCol(r26, 'Subject Number', 'Part 5: Subject');
-      const site3Ack  = findCol(r26, 'Date of Acknowledgement of Receipt on Site', 'Part 3: Date of Acknowledgement');
-      const depotAck  = findCol(r26, 'Date of Ack. of Receipt at Local Depot', 'Part 5: Date of Ack');
-      const destroyed = findCol(r26, 'Date of Destruction', 'Part 5: Date of Destruction');
-
-      // Fallback: use the column that contains "acknowledgement" in part 3
-      const ackCol = r26.length > 0 ? Object.keys(r26[0]).find(k => k.toLowerCase().includes('acknowledgement') && k.toLowerCase().includes('receipt') && k.toLowerCase().includes('site')) : null;
 
       const classifiedKits = [];
 
@@ -1440,11 +1432,15 @@ function showKitDetail(idx) {
 
 function resetPharmacy() {
   state.pharm = { r26:null, r27:null, r28:null, kits:[], currentFilter:'all' };
-  ['r26','r27','r28'].forEach(r => {
-    document.getElementById(`${r}-zone`).classList.remove('loaded');
-    document.getElementById(`${r}-label`).textContent = `Upload Report ${r.toUpperCase()}`;
-    document.getElementById(`${r}-file`).value = '';
-  });
+  document.getElementById('r26-zone').classList.remove('loaded');
+  document.getElementById('r26-label').textContent = 'Upload Study Counts Supply';
+  document.getElementById('r26-file').value = '';
+  document.getElementById('r28-zone').classList.remove('loaded');
+  document.getElementById('r28-label').textContent = 'Upload Subject Visit Summary';
+  document.getElementById('r28-file').value = '';
+  document.getElementById('r27-zone').classList.remove('loaded');
+  document.getElementById('r27-label').textContent = 'Upload Site Supply Summary';
+  document.getElementById('r27-file').value = '';
   document.getElementById('pharm-analyze-btn').disabled = true;
   document.getElementById('pharm-setup-view').style.display = 'block';
   document.getElementById('pharm-results-view').style.display = 'none';
