@@ -319,6 +319,26 @@
   .settings-section h3 { font-family: var(--font-display); font-weight: 700; font-size: 14px; margin-bottom: 4px; }
   .settings-section p { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5; }
 
+
+  /* ─── COLUMN MAPPING PANEL ───────────────────────────── */
+  .col-map-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+  .col-map-title { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+  .col-map-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(30,48,85,0.4); font-size: 12px; }
+  .col-map-row:last-child { border-bottom: none; }
+  .col-map-field { width: 130px; flex-shrink: 0; color: var(--text-muted); font-size: 11px; }
+  .col-map-detected { font-family: var(--font-mono); font-size: 11px; flex: 1; color: var(--text); background: var(--surface2); border-radius: 4px; padding: 3px 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .col-map-detected.missing { color: var(--red); background: rgba(255,71,87,0.1); }
+  .col-map-badge { font-size: 10px; flex-shrink: 0; }
+  .col-map-override { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: var(--font-mono); font-size: 11px; padding: 3px 6px; max-width: 160px; }
+  .col-map-toggle { cursor: pointer; user-select: none; font-size: 11px; color: var(--text-muted); }
+
+  /* ─── SHEET SELECTOR ─────────────────────────────────── */
+  .sheet-selector { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 11px; color: var(--text-muted); }
+  .sheet-selector select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 11px; padding: 4px 8px; border-radius: 4px; }
+
+  /* ─── HEADER PREVIEW ─────────────────────────────────── */
+  .header-preview { font-size: 10px; color: var(--text-muted); margin-top: 6px; line-height: 1.4; }
+  .header-preview b { color: var(--accent); }
   /* ─── MISC ────────────────────────────────────────────────── */
   .progress-wrap { background: var(--surface); border-radius: 4px; height: 4px; overflow: hidden; margin: 8px 20px; }
   .progress-bar  { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); border-radius: 4px; transition: width 0.4s ease; width: 0%; }
@@ -601,6 +621,8 @@
       <div class="upload-icon">📦</div>
       <div class="upload-label" id="r26-label">Upload Study Counts Supply</div>
       <div class="upload-hint">Study inventory report</div>
+      <div class="header-preview" id="r26-headers"></div>
+      <div class="sheet-selector" id="r26-sheet-selector" style="display:none"><span>Sheet:</span><select id="r26-sheet-select" onchange="switchSheet('r26')"></select></div>
     </div>
 
     <p class="section-label" style="margin-top:20px;">Subject Visit Summary <span style="color:var(--red);">*</span></p>
@@ -609,6 +631,8 @@
       <div class="upload-icon">📋</div>
       <div class="upload-label" id="r28-label">Upload Subject Visit Summary</div>
       <div class="upload-hint">Visit log &amp; kit dispensing history</div>
+      <div class="header-preview" id="r28-headers"></div>
+      <div class="sheet-selector" id="r28-sheet-selector" style="display:none"><span>Sheet:</span><select id="r28-sheet-select" onchange="switchSheet('r28')"></select></div>
     </div>
 
     <p class="section-label" style="margin-top:20px;">Site Supply Summary <span style="color:var(--text-muted); font-size:10px;">(optional)</span></p>
@@ -617,6 +641,8 @@
       <div class="upload-icon">👤</div>
       <div class="upload-label" id="r27-label" style="color:var(--text-muted);">Upload Site Supply Summary</div>
       <div class="upload-hint">Site inventory report · adds next visit dates</div>
+      <div class="header-preview" id="r27-headers"></div>
+      <div class="sheet-selector" id="r27-sheet-selector" style="display:none"><span>Sheet:</span><select id="r27-sheet-select" onchange="switchSheet('r27')"></select></div>
     </div>
 
     <button class="btn btn-primary" id="pharm-analyze-btn" style="margin-top:24px;" onclick="runPharmacyAnalysis()" disabled>
@@ -642,6 +668,7 @@
         <div class="filter-pill p-red"    onclick="filterKits('patient',this)">🔴 With Patient</div>
       </div>
 
+      <div id="col-mapping-panel" style="display:none"></div>
       <div id="pharm-kit-list"></div>
 
       <button class="btn btn-success" onclick="exportPharmReport()">⬇ Export to Excel</button>
@@ -1131,40 +1158,199 @@ const VISIT_ORDER = {
   'Visit 14 - Week 96':14,'End of Treatment':99
 };
 
+// ── EXPANDED ALIAS DICTIONARIES ──────────────────────────
+const COL_ALIASES = {
+  // R28
+  kitNumber:   ['Kit Number(s) Assigned','Kit Number','Kit Number(s)','Kit No','Kit ID','Treatment Number','IRT Kit','Dispensed Kit','Kit'],
+  subject:     ['Subject Number','Subject ID','Patient ID','Patient Number','Participant ID','Part. No','Subject No','Randomization Number'],
+  visitName:   ['Visit Name','Visit','Study Visit','Visit Description','Visit Label','Event Name','Timepoint'],
+  visitDate:   ['Visit Date','Date of Visit','Actual Date','Completed Date','Date Completed','Visit Completion Date','Date'],
+  // R26
+  treatNumber: ['Treatment Number','Kit Number','Kit No','Kit ID','IRT Kit Number','Dispensing Number','Treatment Kit','Kit Number(s) Assigned'],
+  packaging:   ['Packaging Number','Package Number','Pkg No','Batch Number'],
+  psu:         ['PSU Number','PSU','Package','Pack Number'],
+  expiry:      ['Expiry Date','Expiration Date','EXP Date','Exp','Use By Date'],
+  kitType:     ['Kit Type','Kit Description','Treatment Type','IP Type','Drug Type','Medication Type'],
+  // R27
+  nextVisit:   ['Next Expected Visit','Next Visit','Upcoming Visit','Next Planned Visit'],
+  nextDate:    ['Next Expected Visit Date','Next Visit Date','Upcoming Visit Date'],
+};
+
+// ── WORKBOOK STORE (for multi-sheet support) ──────────────
+const pharmWorkbooks = { r26: null, r28: null, r27: null };
+
+function findColAdvanced(rows, fieldKey) {
+  if (!rows || rows.length === 0) return null;
+  const headers = Object.keys(rows[0]);
+  const aliases = COL_ALIASES[fieldKey] || [];
+  // 1. Exact match (case-insensitive)
+  for (const alias of aliases) {
+    const found = headers.find(h => h.toLowerCase() === alias.toLowerCase());
+    if (found) return found;
+  }
+  // 2. Substring match
+  for (const alias of aliases) {
+    const found = headers.find(h => h.toLowerCase().includes(alias.toLowerCase()));
+    if (found) return found;
+  }
+  return null;
+}
+
+function detectSiteAckCol(row) {
+  const ackKws = ['acknowledgement','receipt date','site receipt','received at site','site ack','received date','delivery date','site delivery'];
+  return Object.keys(row).find(k => ackKws.some(kw => k.toLowerCase().includes(kw)));
+}
+
+function detectDepotReturnCol(row) {
+  const depotKws = ['depot return','return date','returned to depot','depot receipt','destruction','disposed','returned'];
+  return Object.keys(row).find(k => depotKws.some(kw => k.toLowerCase().includes(kw)));
+}
+
+// ── FILE UPLOAD & SHEET HANDLING ─────────────────────────
 async function handlePharmUpload(report, event) {
   const file = event.target.files[0]; if (!file) return;
-  showLoading(`Parsing ${report === 'r26' ? 'Study Counts Supply' : report === 'r28' ? 'Subject Visit Summary' : 'Site Supply Summary'}…`);
+  const reportName = report === 'r26' ? 'Study Counts Supply' : report === 'r28' ? 'Subject Visit Summary' : 'Site Supply Summary';
+  showLoading(`Parsing ${reportName}…`);
   try {
     const data = await file.arrayBuffer();
-    let rows;
+    let wb;
     if (file.name.toLowerCase().endsWith('.csv')) {
-      rows = parseCSV(new TextDecoder().decode(data));
+      const rows = parseCSV(new TextDecoder().decode(data));
+      state.pharm[report] = rows;
+      pharmWorkbooks[report] = null;
+      showHeaderPreview(report, rows);
     } else {
-      const wb = XLSX.read(data, {type:'array'});
-      rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+      wb = XLSX.read(data, {type:'array'});
+      pharmWorkbooks[report] = wb;
+      // Populate sheet selector if multiple sheets
+      const sheetSel = document.getElementById(`${report}-sheet-selector`);
+      const sheetSelect = document.getElementById(`${report}-sheet-select`);
+      if (wb.SheetNames.length > 1) {
+        sheetSelect.innerHTML = wb.SheetNames.map((n,i) => `<option value="${i}">${n}</option>`).join('');
+        sheetSel.style.display = 'flex';
+      } else {
+        sheetSel.style.display = 'none';
+      }
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+      state.pharm[report] = rows;
+      showHeaderPreview(report, rows);
     }
-    state.pharm[report] = rows;
     hideLoading();
-
-    // Update UI
     const zone  = document.getElementById(`${report}-zone`);
     const label = document.getElementById(`${report}-label`);
     zone.classList.add('loaded');
-    label.textContent = `✅ ${file.name} (${rows.length} rows)`;
-
-    // Enable analyze button when r26 + r28 are loaded
-    document.getElementById('pharm-analyze-btn').disabled =
-      !(state.pharm.r26 && state.pharm.r28);
-
-    toast(`✓ ${rows.length} rows loaded`);
+    label.textContent = `✅ ${file.name} (${state.pharm[report].length} rows)`;
+    document.getElementById('pharm-analyze-btn').disabled = !(state.pharm.r26 && state.pharm.r28);
+    toast(`✓ ${state.pharm[report].length} rows loaded`);
   } catch(err) { hideLoading(); toast('Error parsing file: ' + err.message); }
 }
 
+function switchSheet(report) {
+  const wb = pharmWorkbooks[report];
+  if (!wb) return;
+  const idx = parseInt(document.getElementById(`${report}-sheet-select`).value);
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[idx]], {defval:''});
+  state.pharm[report] = rows;
+  const label = document.getElementById(`${report}-label`);
+  label.textContent = `✅ Sheet: ${wb.SheetNames[idx]} (${rows.length} rows)`;
+  showHeaderPreview(report, rows);
+  document.getElementById('pharm-analyze-btn').disabled = !(state.pharm.r26 && state.pharm.r28);
+  toast(`✓ Sheet "${wb.SheetNames[idx]}" — ${rows.length} rows`);
+}
+
+function showHeaderPreview(report, rows) {
+  const el = document.getElementById(`${report}-headers`);
+  if (!el || !rows || rows.length === 0) return;
+  const headers = Object.keys(rows[0]);
+  const preview = headers.slice(0, 8).join(', ') + (headers.length > 8 ? ` +${headers.length - 8} more` : '');
+  el.innerHTML = `<b>${headers.length} columns:</b> ${preview}`;
+}
+
+// ── COLUMN MAPPING PANEL ─────────────────────────────────
+function buildMappingPanel(r26map, r28map, r27map) {
+  const r28Headers = r28map.__allHeaders || [];
+  const r26Headers = r26map.__allHeaders || [];
+  const r27Headers = r27map.__allHeaders || [];
+
+  const makeRow = (label, detected, allHeaders, mapKey, reportKey) => {
+    const missing = !detected;
+    const opts = allHeaders.map(h => `<option value="${h}" ${h===detected?'selected':''}>${h}</option>`).join('');
+    const noneOpt = `<option value="" ${!detected?'selected':''}>— not mapped —</option>`;
+    return `<div class="col-map-row" id="cmr-${reportKey}-${mapKey}">
+      <span class="col-map-field">${label}</span>
+      <span class="col-map-detected ${missing?'missing':''}">${detected || '⚠ Not found'}</span>
+      <span class="col-map-badge">${missing ? '⚠️' : '✓'}</span>
+      <select class="col-map-override" onchange="overrideMapping('${reportKey}','${mapKey}',this.value)">${noneOpt}${opts}</select>
+    </div>`;
+  };
+
+  const r28Rows = [
+    makeRow('Kit Number',  r28map.kitNumber,  r28Headers, 'kitNumber',  'r28'),
+    makeRow('Subject',     r28map.subject,    r28Headers, 'subject',    'r28'),
+    makeRow('Visit Name',  r28map.visitName,  r28Headers, 'visitName',  'r28'),
+    makeRow('Visit Date',  r28map.visitDate,  r28Headers, 'visitDate',  'r28'),
+  ].join('');
+
+  const r26Rows = [
+    makeRow('Kit/Treat. No.', r26map.treatNumber, r26Headers, 'treatNumber', 'r26'),
+    makeRow('Subject',        r26map.subject,      r26Headers, 'subject',     'r26'),
+    makeRow('Expiry Date',    r26map.expiry,        r26Headers, 'expiry',      'r26'),
+    makeRow('Kit Type',       r26map.kitType,       r26Headers, 'kitType',     'r26'),
+    makeRow('PSU',            r26map.psu,           r26Headers, 'psu',         'r26'),
+    makeRow('Packaging No.',  r26map.packaging,     r26Headers, 'packaging',   'r26'),
+  ].join('');
+
+  const r27Rows = r27Headers.length > 0 ? [
+    makeRow('Subject',    r27map.subject,   r27Headers, 'subject',   'r27'),
+    makeRow('Next Visit', r27map.nextVisit, r27Headers, 'nextVisit', 'r27'),
+    makeRow('Next Date',  r27map.nextDate,  r27Headers, 'nextDate',  'r27'),
+  ].join('') : '';
+
+  const hasMissing = [r28map, r26map, r27map].some(m =>
+    Object.entries(m).some(([k,v]) => k !== '__allHeaders' && !v)
+  );
+
+  const panel = document.getElementById('col-mapping-panel');
+  panel.style.display = 'block';
+  panel.innerHTML = `
+    <div class="col-map-panel">
+      <div class="col-map-title">
+        <span>🗂 Column Mapping ${hasMissing ? '<span style="color:var(--red)">— ⚠ issues detected</span>' : '<span style="color:var(--green)">— all fields mapped ✓</span>'}</span>
+        <span class="col-map-toggle" onclick="toggleMappingPanel()">[${hasMissing ? 'expand' : 'collapse'}]</span>
+      </div>
+      <div id="col-map-body" style="display:${hasMissing ? 'block' : 'none'}">
+        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin:8px 0 4px">Subject Visit Summary (R28)</div>
+        ${r28Rows}
+        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin:12px 0 4px">Study Counts Supply (R26)</div>
+        ${r26Rows}
+        ${r27Headers.length > 0 ? `<div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin:12px 0 4px">Site Supply Summary (R27)</div>${r27Rows}` : ''}
+        <button class="btn btn-primary" style="margin-top:12px;min-height:40px;font-size:13px;" onclick="applyColumnOverrides()">↻ Apply Mapping & Re-analyze</button>
+      </div>
+    </div>`;
+}
+
+function toggleMappingPanel() {
+  const body = document.getElementById('col-map-body');
+  if (!body) return;
+  body.style.display = body.style.display === 'none' ? 'block' : 'none';
+}
+
+// Store current column map for overrides
+let currentColMap = { r26: {}, r28: {}, r27: {} };
+
+function overrideMapping(report, field, value) {
+  currentColMap[report][field] = value || null;
+}
+
+function applyColumnOverrides() {
+  runPharmacyAnalysis(true);
+}
+
+// ── ANALYSIS ─────────────────────────────────────────────
 function parseDate(val) {
   if (!val || val === 'n/a' || val === '') return null;
   if (val instanceof Date) return val;
   const s = String(val).trim();
-  // Try "27 Feb 2026"
   const m = s.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
   if (m) {
     const months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
@@ -1179,7 +1365,7 @@ function fmtDate(d) {
   return d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
 }
 
-function runPharmacyAnalysis() {
+function runPharmacyAnalysis(useOverrides = false) {
   if (!state.pharm.r26 || !state.pharm.r28) { toast('Study Counts Supply and Subject Visit Summary required'); return; }
   showLoading('Analyzing inventory…');
 
@@ -1189,83 +1375,117 @@ function runPharmacyAnalysis() {
       const r28 = state.pharm.r28;
       const r27 = state.pharm.r27 || [];
 
-      // ── Parse R28: kit → dispensing info ─────────────────
-      const findCol = (rows, ...candidates) => {
-        const h = Object.keys(rows[0] || {});
-        for (const c of candidates) { const f = h.find(k => k.toLowerCase().includes(c.toLowerCase())); if (f) return f; }
-        return null;
+      // ── Auto-detect columns ───────────────────────────
+      const getCol = (rows, fieldKey, reportKey) => {
+        if (useOverrides && currentColMap[reportKey][fieldKey] !== undefined) {
+          return currentColMap[reportKey][fieldKey];
+        }
+        return findColAdvanced(rows, fieldKey);
       };
 
-      const kitCol    = findCol(r28, 'Kit Number', 'Kit Number(s)');
-      const visitCol  = findCol(r28, 'Visit Name');
-      const dateCol   = findCol(r28, 'Visit Date');
-      const subjCol28 = findCol(r28, 'Subject Number');
+      // Build maps with all headers for the panel
+      const r28Headers = Object.keys(r28[0] || {});
+      const r26Headers = Object.keys(r26[0] || {});
+      const r27Headers = Object.keys(r27[0] || {});
 
-      const kitDispensed  = {};  // kit_num → {subject, visit, visitOrder, date}
-      const subjLastVisit = {};  // subject → {visit, visitOrder, date}
+      const r28map = {
+        __allHeaders: r28Headers,
+        kitNumber:  getCol(r28, 'kitNumber', 'r28'),
+        subject:    getCol(r28, 'subject', 'r28'),
+        visitName:  getCol(r28, 'visitName', 'r28'),
+        visitDate:  getCol(r28, 'visitDate', 'r28'),
+      };
+      const r26map = {
+        __allHeaders: r26Headers,
+        treatNumber: getCol(r26, 'treatNumber', 'r26'),
+        subject:     getCol(r26, 'subject', 'r26'),
+        expiry:      getCol(r26, 'expiry', 'r26'),
+        kitType:     getCol(r26, 'kitType', 'r26'),
+        psu:         getCol(r26, 'psu', 'r26'),
+        packaging:   getCol(r26, 'packaging', 'r26'),
+      };
+      const r27map = {
+        __allHeaders: r27Headers,
+        subject:     getCol(r27, 'subject', 'r27'),
+        nextVisit:   getCol(r27, 'nextVisit', 'r27'),
+        nextDate:    getCol(r27, 'nextDate', 'r27'),
+      };
+
+      // Store for overrides
+      if (!useOverrides) {
+        currentColMap.r28 = { ...r28map };
+        currentColMap.r26 = { ...r26map };
+        currentColMap.r27 = { ...r27map };
+        delete currentColMap.r28.__allHeaders;
+        delete currentColMap.r26.__allHeaders;
+        delete currentColMap.r27.__allHeaders;
+      }
+
+      // Toast warnings for missing required columns
+      const reqR28 = { 'Kit Number (R28)': r28map.kitNumber, 'Subject (R28)': r28map.subject, 'Visit Name': r28map.visitName, 'Visit Date': r28map.visitDate };
+      const reqR26 = { 'Kit/Treatment No. (R26)': r26map.treatNumber };
+      [...Object.entries(reqR28), ...Object.entries(reqR26)].forEach(([name, col]) => {
+        if (!col) toast(`⚠ Could not detect "${name}" column — check Column Mapping`, 4000);
+      });
+
+      // ── Parse R28 ─────────────────────────────────────
+      const kitDispensed  = {};
+      const subjLastVisit = {};
 
       r28.forEach(row => {
-        const subj  = row[subjCol28];
-        const visit = row[visitCol];
-        const date  = parseDate(row[dateCol]);
-        const kit   = row[kitCol];
-        const vo    = VISIT_ORDER[visit] !== undefined ? VISIT_ORDER[visit] : -1;
+        const subj  = r28map.subject ? row[r28map.subject] : null;
+        const visit = r28map.visitName ? row[r28map.visitName] : null;
+        const date  = r28map.visitDate ? parseDate(row[r28map.visitDate]) : null;
+        const kitRaw = r28map.kitNumber ? String(row[r28map.kitNumber] || '') : '';
+
+        // Handle multi-kit cells (comma or semicolon separated)
+        const kits = kitRaw.split(/[,;]/).map(k => k.trim()).filter(k => k && k !== 'n/a');
+        const vo = visit && VISIT_ORDER[visit] !== undefined ? VISIT_ORDER[visit] : -1;
 
         if (date && subj) {
           if (!subjLastVisit[subj] || date > subjLastVisit[subj].date) {
             subjLastVisit[subj] = { visit, visitOrder: vo, date };
           }
         }
-        if (kit && String(kit) !== 'n/a' && String(kit) !== '') {
-          kitDispensed[String(kit)] = { subject: subj, visit, visitOrder: vo, date };
-        }
+        kits.forEach(kit => {
+          if (!kitDispensed[kit]) {
+            kitDispensed[kit] = { subject: subj, visit, visitOrder: vo, date };
+          }
+        });
       });
 
-      // ── Parse R27: subject → next visit ──────────────────
+      // ── Parse R27 ─────────────────────────────────────
       const subjNextVisit = {};
-      if (r27.length > 0) {
-        const subjCol27   = findCol(r27, 'Subject Number');
-        const nextVisCol  = findCol(r27, 'Next Expected Visit');
-        const nextDateCol = findCol(r27, 'Next Expected Visit Date');
+      if (r27.length > 0 && r27map.subject) {
         r27.forEach(row => {
-          const s = row[subjCol27];
-          if (s) subjNextVisit[s] = { visit: row[nextVisCol] || '', date: parseDate(row[nextDateCol]) };
+          const s = row[r27map.subject];
+          if (s) subjNextVisit[s] = {
+            visit: r27map.nextVisit ? (row[r27map.nextVisit] || '') : '',
+            date: r27map.nextDate ? parseDate(row[r27map.nextDate]) : null
+          };
         });
       }
 
-      // ── Parse R26: classify each kit ─────────────────────
-      const treatCol  = findCol(r26, 'Treatment Number');
-      const pkgCol    = findCol(r26, 'Packaging Number');
-      const psuCol    = findCol(r26, 'PSU Number');
-      const expCol    = findCol(r26, 'Expiry Date');
-      const kitTypeCol= findCol(r26, 'Kit Type');
-      const subjCol26 = findCol(r26, 'Subject Number', 'Part 5: Subject');
-
+      // ── Parse R26 & classify ──────────────────────────
       const classifiedKits = [];
 
       r26.forEach(row => {
-        const treatNum  = String(row[treatCol] || '').trim();
-        const pkg       = String(row[pkgCol] || '').trim();
-        const psu       = String(row[psuCol] || '').trim();
-        const expiry    = String(row[expCol] || '').trim();
-        const kitType   = String(row[kitTypeCol] || '').trim();
-        const subj26    = row[subjCol26];
+        const treatNum = r26map.treatNumber ? String(row[r26map.treatNumber] || '').trim() : '';
+        const pkg      = r26map.packaging  ? String(row[r26map.packaging]  || '').trim() : '';
+        const psu      = r26map.psu        ? String(row[r26map.psu]        || '').trim() : '';
+        const expiry   = r26map.expiry     ? String(row[r26map.expiry]     || '').trim() : '';
+        const kitType  = r26map.kitType    ? String(row[r26map.kitType]    || '').trim() : '';
+        const subj26   = r26map.subject    ? row[r26map.subject] : null;
 
-        const received  = Object.keys(row).some(k =>
-          k.toLowerCase().includes('acknowledgement') &&
-          k.toLowerCase().includes('receipt') &&
-          k.toLowerCase().includes('site') &&
-          row[k] && String(row[k]).trim() !== '' && String(row[k]).trim() !== 'n/a'
-        );
+        if (!treatNum) return; // skip empty rows
 
-        const hasDepot  = Object.keys(row).some(k =>
-          k.toLowerCase().includes('depot') &&
-          row[k] && String(row[k]).trim() !== '' && String(row[k]).trim() !== 'n/a'
-        );
-        const hasDestroy = Object.keys(row).some(k =>
-          k.toLowerCase().includes('destruction') &&
-          row[k] && String(row[k]).trim() !== '' && String(row[k]).trim() !== 'n/a'
-        );
+        // Site acknowledgement — loosened OR detection
+        const ackCol  = detectSiteAckCol(row);
+        const received = ackCol && row[ackCol] && String(row[ackCol]).trim() !== '' && String(row[ackCol]).trim() !== 'n/a';
+
+        // Depot return / destruction — OR detection
+        const depotCol = detectDepotReturnCol(row);
+        const hasLeft  = depotCol && row[depotCol] && String(row[depotCol]).trim() !== '' && String(row[depotCol]).trim() !== 'n/a';
 
         const dispensed = subj26 && String(subj26).trim() !== '' && String(subj26).trim() !== 'n/a';
 
@@ -1274,22 +1494,37 @@ function runPharmacyAnalysis() {
         if (!received) {
           status = 'not_received'; color = 'gray';
           note = 'Awaiting site acknowledgement';
-        } else if (hasDepot || hasDestroy) {
+        } else if (hasLeft) {
           status = 'left_site'; color = 'blue';
-          note = hasDestroy ? 'Confirmed destruction' : 'Returned to local depot';
+          note = 'Returned to depot or destroyed';
         } else if (!dispensed) {
-          status = 'available'; color = 'green';
-          note = 'Never dispensed — should be in pharmacy/fridge';
+          // No subject assigned — check kitDispensed via treatNum
+          const kdByTreat = kitDispensed[treatNum];
+          if (kdByTreat) {
+            const lv = subjLastVisit[kdByTreat.subject];
+            if (lv && lv.visitOrder > kdByTreat.visitOrder) {
+              status = 'returned'; color = 'yellow';
+              note = `Dispensed at ${kdByTreat.visit}. Patient later attended ${lv.visit} — likely returned.`;
+            } else {
+              status = 'with_patient'; color = 'red';
+              const nv = subjNextVisit[kdByTreat.subject];
+              nextInfo = nv ? `${nv.visit}${nv.date ? ' · ' + fmtDate(nv.date) : ''}` : '';
+              note = `Dispensed at ${kdByTreat.visit} on ${fmtDate(kdByTreat.date)}.`;
+            }
+          } else {
+            status = 'available'; color = 'green';
+            note = 'Never dispensed — should be in pharmacy/fridge';
+          }
         } else {
           const kd = kitDispensed[treatNum];
           if (!kd) {
             status = 'dispensed_unknown'; color = 'yellow';
-            note = `Dispensed to ${subj26}, no visit data found`;
+            note = `Dispensed to ${subj26}, no R28 visit data found — verify manually`;
           } else {
             const lv = subjLastVisit[kd.subject];
             if (lv && lv.visitOrder > kd.visitOrder) {
               status = 'returned'; color = 'yellow';
-              note   = `Dispensed at ${kd.visit}. Patient later attended ${lv.visit} — likely returned.`;
+              note = `Dispensed at ${kd.visit}. Patient later attended ${lv.visit} — likely returned.`;
             } else {
               status = 'with_patient'; color = 'red';
               const nv = subjNextVisit[kd.subject];
@@ -1313,6 +1548,10 @@ function runPharmacyAnalysis() {
 
       state.pharm.kits = classifiedKits;
       hideLoading();
+
+      // Build column mapping panel
+      buildMappingPanel(r26map, r28map, r27map);
+
       renderPharmResults();
 
     } catch(err) {
@@ -1321,173 +1560,6 @@ function runPharmacyAnalysis() {
       toast('Analysis error: ' + err.message);
     }
   }, 50);
-}
-
-function renderPharmResults() {
-  const kits = state.pharm.kits;
-  const counts = {
-    available: kits.filter(k => k.status === 'available').length,
-    returned:  kits.filter(k => k.status === 'returned' || k.status === 'dispensed_unknown').length,
-    patient:   kits.filter(k => k.status === 'with_patient').length,
-  };
-
-  // Summary stats
-  document.getElementById('pharm-stats').innerHTML = `
-    <div class="pharm-stat s-green"><div class="pn">${counts.available}</div><div class="pl">In Pharmacy<br>Available</div></div>
-    <div class="pharm-stat s-yellow"><div class="pn">${counts.returned}</div><div class="pl">In Pharmacy<br>Returned</div></div>
-    <div class="pharm-stat s-red"><div class="pn">${counts.patient}</div><div class="pl">With<br>Patient</div></div>
-  `;
-  document.getElementById('pharm-subtitle').textContent =
-    `${counts.available + counts.returned} kits expected in pharmacy · ${counts.patient} pending return`;
-
-  // Show results view
-  document.getElementById('pharm-setup-view').style.display = 'none';
-  const rv = document.getElementById('pharm-results-view');
-  rv.style.display = 'flex';
-
-  filterKits('all', document.querySelector('#pharm-filter-bar .filter-pill'));
-}
-
-function filterKits(filter, el) {
-  state.pharm.currentFilter = filter;
-  document.querySelectorAll('#pharm-filter-bar .filter-pill').forEach(p => p.classList.remove('active'));
-  el.classList.add('active');
-
-  const show = ['available','not_received','left_site','dispensed_unknown','returned','with_patient'];
-  const map = {
-    all:       show,
-    available: ['available'],
-    returned:  ['returned','dispensed_unknown'],
-    patient:   ['with_patient'],
-  };
-
-  const filtered = state.pharm.kits.filter(k => (map[filter] || show).includes(k.status));
-  renderKitList(filtered);
-}
-
-function renderKitList(kits) {
-  const container = document.getElementById('pharm-kit-list');
-  if (kits.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><p>No kits match this filter.</p></div>';
-    return;
-  }
-
-  const colorClass = { green:'k-green', yellow:'k-yellow', red:'k-red', gray:'', blue:'' };
-  const dotClass   = { green:'d-green', yellow:'d-yellow', red:'d-red', gray:'', blue:'' };
-  const txtClass   = { green:'t-green', yellow:'t-yellow', red:'t-red', gray:'', blue:'' };
-
-  const statusLabel = {
-    available:        '🟢 In pharmacy — never dispensed',
-    returned:         '🟡 In pharmacy — returned by patient',
-    dispensed_unknown:'🟡 Dispensed — verify status',
-    with_patient:     '🔴 With patient — return pending',
-    not_received:     '⬜ Not yet received on site',
-    left_site:        '↩ Returned to depot / destroyed',
-  };
-
-  container.innerHTML = kits.map((k, i) => `
-    <div class="kit-card ${colorClass[k.color]||''}" onclick="showKitDetail(${state.pharm.kits.indexOf(k)})">
-      <div class="kit-card-top">
-        <span class="kit-num">Kit ${k.treatNum}</span>
-        <span class="kit-ip">${k.pkg}</span>
-      </div>
-      <div class="kit-meta">
-        <div class="kit-meta-field">PSU: <b>${k.psu || '—'}</b></div>
-        <div class="kit-meta-field">EXP: <b>${k.expiry || '—'}</b></div>
-        ${k.subject ? `<div class="kit-meta-field">Subject: <b>${k.subject}</b></div>` : ''}
-        ${k.dispensedVisit ? `<div class="kit-meta-field">Dispensed: <b>${k.dispensedVisit.replace('Visit ','V').replace(' - Week','w')}</b></div>` : ''}
-      </div>
-      <div class="kit-status-row">
-        <div class="status-dot ${dotClass[k.color]||''}"></div>
-        <span class="status-text ${txtClass[k.color]||''}">${statusLabel[k.status]||k.status}</span>
-        ${k.nextVisitInfo ? `<span class="kit-next">${k.nextVisitInfo}</span>` : ''}
-      </div>
-    </div>
-  `).join('');
-}
-
-function showKitDetail(idx) {
-  const k = state.pharm.kits[idx];
-  document.getElementById('kd-title').textContent = `Kit ${k.treatNum}`;
-  const statusLabel = {
-    available:'🟢 In pharmacy — never dispensed',returned:'🟡 In pharmacy — returned by patient',
-    dispensed_unknown:'🟡 Dispensed — verify status',with_patient:'🔴 With patient',
-    not_received:'⬜ Not yet received',left_site:'↩ Returned to depot / destroyed'
-  };
-  document.getElementById('kd-content').innerHTML = `
-    <div class="detail-row"><span class="detail-lbl">Status</span><span class="detail-val">${statusLabel[k.status]||k.status}</span></div>
-    <div class="detail-row"><span class="detail-lbl">Kit Number</span><span class="detail-val">${k.treatNum}</span></div>
-    <div class="detail-row"><span class="detail-lbl">Packaging (IP)</span><span class="detail-val">${k.pkg||'—'}</span></div>
-    <div class="detail-row"><span class="detail-lbl">PSU</span><span class="detail-val">${k.psu||'—'}</span></div>
-    <div class="detail-row"><span class="detail-lbl">Expiry</span><span class="detail-val">${k.expiry||'—'}</span></div>
-    <div class="detail-row"><span class="detail-lbl">Kit Type</span><span class="detail-val">${k.kitType||'—'}</span></div>
-    ${k.subject ? `<div class="detail-row"><span class="detail-lbl">Subject</span><span class="detail-val">${k.subject}</span></div>` : ''}
-    ${k.dispensedVisit ? `<div class="detail-row"><span class="detail-lbl">Dispensed At</span><span class="detail-val">${k.dispensedVisit}</span></div>` : ''}
-    ${k.dispensedDate ? `<div class="detail-row"><span class="detail-lbl">Dispensed On</span><span class="detail-val">${fmtDate(k.dispensedDate)}</span></div>` : ''}
-    ${k.nextVisitInfo ? `<div class="detail-row"><span class="detail-lbl">Next Visit</span><span class="detail-val">${k.nextVisitInfo}</span></div>` : ''}
-    <div class="detail-row"><span class="detail-lbl">Notes</span><span class="detail-val" style="color:var(--text-muted);font-size:12px;">${k.note}</span></div>
-  `;
-  document.getElementById('kit-detail-modal').classList.add('show');
-}
-
-function resetPharmacy() {
-  state.pharm = { r26:null, r27:null, r28:null, kits:[], currentFilter:'all' };
-  document.getElementById('r26-zone').classList.remove('loaded');
-  document.getElementById('r26-label').textContent = 'Upload Study Counts Supply';
-  document.getElementById('r26-file').value = '';
-  document.getElementById('r28-zone').classList.remove('loaded');
-  document.getElementById('r28-label').textContent = 'Upload Subject Visit Summary';
-  document.getElementById('r28-file').value = '';
-  document.getElementById('r27-zone').classList.remove('loaded');
-  document.getElementById('r27-label').textContent = 'Upload Site Supply Summary';
-  document.getElementById('r27-file').value = '';
-  document.getElementById('pharm-analyze-btn').disabled = true;
-  document.getElementById('pharm-setup-view').style.display = 'block';
-  document.getElementById('pharm-results-view').style.display = 'none';
-}
-
-function exportPharmReport() {
-  const wb = XLSX.utils.book_new();
-  const kits = state.pharm.kits;
-  const today = new Date().toISOString().split('T')[0];
-
-  const statusLabel = {
-    available:'In pharmacy - Available',returned:'In pharmacy - Returned by patient',
-    dispensed_unknown:'Dispensed - Verify status',with_patient:'With patient - Return pending',
-    not_received:'Not yet received',left_site:'Returned to depot / Destroyed'
-  };
-
-  // Sheet 1: Pharmacy + Patient kits
-  const pharmKits = kits.filter(k => ['available','returned','dispensed_unknown','with_patient'].includes(k.status));
-  const data1 = [['Status','Kit No.','PSU','Packaging (IP)','Expiry','Kit Type','Subject','Dispensed At','Dispensed Date','Next Visit','Notes']];
-  pharmKits.forEach(k => data1.push([
-    statusLabel[k.status]||k.status, k.treatNum, k.psu, k.pkg, k.expiry, k.kitType,
-    k.subject||'', k.dispensedVisit||'', k.dispensedDate?fmtDate(k.dispensedDate):'',
-    k.nextVisitInfo||'', k.note
-  ]));
-  const ws1 = XLSX.utils.aoa_to_sheet(data1);
-  ws1['!cols'] = [28,10,8,14,12,22,14,24,14,28,45].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb, ws1, 'Pharmacy Inventory');
-
-  // Sheet 2: Summary
-  const counts = {available:0,returned:0,with_patient:0,left_site:0,not_received:0};
-  kits.forEach(k => { if(counts[k.status]!==undefined) counts[k.status]++; });
-  const ws2 = XLSX.utils.aoa_to_sheet([
-    ['MEDICATION RECONCILIATION SUMMARY'], [''],
-    ['Status','Count','Description'],
-    ['🟢 In pharmacy - Available', counts.available, 'Never dispensed'],
-    ['🟡 In pharmacy - Returned', counts.returned, 'Dispensed, patient had subsequent visits'],
-    ['🔴 With patient - Return pending', counts.with_patient, 'Dispensed at most recent visit'],
-    ['↩ Left site', counts.left_site, 'Returned to depot or destroyed'],
-    ['⬜ Not yet received', counts.not_received, 'Awaiting site acknowledgement'],
-    [''],
-    ['Kits expected in pharmacy', counts.available + counts.returned, ''],
-    ['Report date', today, ''],
-  ]);
-  XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
-
-  XLSX.writeFile(wb, `MedScan_PharmacyInventory_${today}.xlsx`);
-  toast('✓ Pharmacy report exported');
 }
 
 // ════════════════════════════════════════════════════════
