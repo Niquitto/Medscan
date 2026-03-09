@@ -274,6 +274,8 @@
   .kit-card.k-green  { border-left-color: var(--green); }
   .kit-card.k-yellow { border-left-color: var(--yellow); }
   .kit-card.k-red    { border-left-color: var(--red); }
+  .kit-card.k-blue   { border-left-color: var(--accent); }
+  .kit-card.k-gray   { border-left-color: var(--gray); }
 
   .kit-card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
   .kit-num { font-family: var(--font-display); font-weight: 700; font-size: 15px; }
@@ -609,17 +611,17 @@
     <div class="alert-strip">
       <span>ℹ</span>
       <div>
-        <b>Required: Study Counts Supply + Subject Visit Summary</b><br>
-        Study Counts Supply = Kit inventory &nbsp;·&nbsp; Subject Visit Summary = Dispensing history<br>
-        <span style="color:var(--text-muted);">Site Supply Summary = Optional — adds next expected visit dates</span>
+        <b>Required: Study Supply Report + Subject Visit Summary</b><br>
+        Supply Report = Kit inventory &nbsp;·&nbsp; Subject Visit Summary = Dispensing history<br>
+        <span style="color:var(--text-muted);">Use <b>Numbered Supply</b> (individual kits) or Counts Supply &nbsp;·&nbsp; Site Supply Summary = Optional</span>
       </div>
     </div>
 
-    <p class="section-label">Study Counts Supply <span style="color:var(--red);">*</span></p>
+    <p class="section-label">Study Supply Summary <span style="color:var(--red);">*</span> <span style="color:var(--text-muted);font-size:10px;">(Numbered or Counts)</span></p>
     <div class="upload-zone" id="r26-zone">
       <input type="file" id="r26-file" accept=".xlsx,.csv" onchange="handlePharmUpload('r26', event)">
       <div class="upload-icon">📦</div>
-      <div class="upload-label" id="r26-label">Upload Study Counts Supply</div>
+      <div class="upload-label" id="r26-label">Upload Supply Summary (Numbered or Counts)</div>
       <div class="upload-hint">Study inventory report</div>
       <div class="header-preview" id="r26-headers"></div>
       <div class="sheet-selector" id="r26-sheet-selector" style="display:none"><span>Sheet:</span><select id="r26-sheet-select" onchange="switchSheet('r26')"></select></div>
@@ -1166,11 +1168,13 @@ const COL_ALIASES = {
   visitName:   ['Visit Name','Visit','Study Visit','Visit Description','Visit Label','Event Name','Timepoint'],
   visitDate:   ['Visit Date','Date of Visit','Actual Date','Completed Date','Date Completed','Visit Completion Date','Date'],
   // R26
-  treatNumber: ['Treatment Number','Kit Number','Kit No','Kit ID','IRT Kit Number','Dispensing Number','Treatment Kit','Kit Number(s) Assigned'],
-  packaging:   ['Packaging Number','Package Number','Pkg No','Batch Number'],
-  psu:         ['PSU Number','PSU','Package','Pack Number'],
-  expiry:      ['Expiry Date','Expiration Date','EXP Date','Exp','Use By Date'],
-  kitType:     ['Kit Type','Kit Description','Treatment Type','IP Type','Drug Type','Medication Type'],
+  treatNumber:    ['Kit Number','Treatment Number','Kit No','Kit ID','IRT Kit Number','Dispensing Number','Treatment Kit','Kit Number(s) Assigned'],
+  packaging:      ['Packaging Number','Package Number','Pkg No','Batch Number'],
+  psu:            ['PSU Number','PSU','Package','Pack Number'],
+  expiry:         ['Expiry Date','Expiration Date','EXP Date','Exp','Use By Date'],
+  kitType:        ['Blinded Kit Name','Kit Type','Kit Description','Treatment Type','Treatment Name','IP Type','Drug Type','Drug Name','Medication Type'],
+  kitStatus:      ['Current Kit Status','Kit Status','IRT Status','Kit Current Status','Dispensed Status'],
+  visitDispensed: ['Visit Dispensed','Dispensed Visit','Visit Name','Visit'],
   // R27
   nextVisit:   ['Next Expected Visit','Next Visit','Upcoming Visit','Next Planned Visit'],
   nextDate:    ['Next Expected Visit Date','Next Visit Date','Upcoming Visit Date'],
@@ -1209,7 +1213,7 @@ function detectDepotReturnCol(row) {
 // ── FILE UPLOAD & SHEET HANDLING ─────────────────────────
 async function handlePharmUpload(report, event) {
   const file = event.target.files[0]; if (!file) return;
-  const reportName = report === 'r26' ? 'Study Counts Supply' : report === 'r28' ? 'Subject Visit Summary' : 'Site Supply Summary';
+  const reportName = report === 'r26' ? 'Study Supply Summary' : report === 'r28' ? 'Subject Visit Summary' : 'Site Supply Summary';
   showLoading(`Parsing ${reportName}…`);
   try {
     const data = await file.arrayBuffer();
@@ -1292,12 +1296,14 @@ function buildMappingPanel(r26map, r28map, r27map) {
   ].join('');
 
   const r26Rows = [
-    makeRow('Kit/Treat. No.', r26map.treatNumber, r26Headers, 'treatNumber', 'r26'),
-    makeRow('Subject',        r26map.subject,      r26Headers, 'subject',     'r26'),
-    makeRow('Expiry Date',    r26map.expiry,        r26Headers, 'expiry',      'r26'),
-    makeRow('Kit Type',       r26map.kitType,       r26Headers, 'kitType',     'r26'),
-    makeRow('PSU',            r26map.psu,           r26Headers, 'psu',         'r26'),
-    makeRow('Packaging No.',  r26map.packaging,     r26Headers, 'packaging',   'r26'),
+    makeRow('Kit Number',     r26map.treatNumber,    r26Headers, 'treatNumber',    'r26'),
+    makeRow('Kit Status',     r26map.kitStatus,      r26Headers, 'kitStatus',      'r26'),
+    makeRow('Subject',        r26map.subject,        r26Headers, 'subject',        'r26'),
+    makeRow('Visit Dispensed',r26map.visitDispensed, r26Headers, 'visitDispensed', 'r26'),
+    makeRow('Expiry Date',    r26map.expiry,         r26Headers, 'expiry',         'r26'),
+    makeRow('Kit Type',       r26map.kitType,        r26Headers, 'kitType',        'r26'),
+    makeRow('PSU',            r26map.psu,            r26Headers, 'psu',            'r26'),
+    makeRow('Packaging No.',  r26map.packaging,      r26Headers, 'packaging',      'r26'),
   ].join('');
 
   const r27Rows = r27Headers.length > 0 ? [
@@ -1306,8 +1312,9 @@ function buildMappingPanel(r26map, r28map, r27map) {
     makeRow('Next Date',  r27map.nextDate,  r27Headers, 'nextDate',  'r27'),
   ].join('') : '';
 
+  const OPTIONAL_FIELDS = new Set(['kitStatus','visitDispensed','nextVisit','nextDate','packaging','psu']);
   const hasMissing = [r28map, r26map, r27map].some(m =>
-    Object.entries(m).some(([k,v]) => k !== '__allHeaders' && !v)
+    Object.entries(m).some(([k,v]) => k !== '__allHeaders' && !OPTIONAL_FIELDS.has(k) && !v)
   );
 
   const panel = document.getElementById('col-mapping-panel');
@@ -1321,7 +1328,7 @@ function buildMappingPanel(r26map, r28map, r27map) {
       <div id="col-map-body" style="display:${hasMissing ? 'block' : 'none'}">
         <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin:8px 0 4px">Subject Visit Summary (R28)</div>
         ${r28Rows}
-        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin:12px 0 4px">Study Counts Supply (R26)</div>
+        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin:12px 0 4px">Study Supply Summary (R26)</div>
         ${r26Rows}
         ${r27Headers.length > 0 ? `<div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin:12px 0 4px">Site Supply Summary (R27)</div>${r27Rows}` : ''}
         <button class="btn btn-primary" style="margin-top:12px;min-height:40px;font-size:13px;" onclick="applyColumnOverrides()">↻ Apply Mapping & Re-analyze</button>
@@ -1366,7 +1373,7 @@ function fmtDate(d) {
 }
 
 function runPharmacyAnalysis(useOverrides = false) {
-  if (!state.pharm.r26 || !state.pharm.r28) { toast('Study Counts Supply and Subject Visit Summary required'); return; }
+  if (!state.pharm.r26 || !state.pharm.r28) { toast('Study Supply Summary and Subject Visit Summary required'); return; }
   showLoading('Analyzing inventory…');
 
   setTimeout(() => {
@@ -1397,12 +1404,14 @@ function runPharmacyAnalysis(useOverrides = false) {
       };
       const r26map = {
         __allHeaders: r26Headers,
-        treatNumber: getCol(r26, 'treatNumber', 'r26'),
-        subject:     getCol(r26, 'subject', 'r26'),
-        expiry:      getCol(r26, 'expiry', 'r26'),
-        kitType:     getCol(r26, 'kitType', 'r26'),
-        psu:         getCol(r26, 'psu', 'r26'),
-        packaging:   getCol(r26, 'packaging', 'r26'),
+        treatNumber:    getCol(r26, 'treatNumber', 'r26'),
+        subject:        getCol(r26, 'subject', 'r26'),
+        expiry:         getCol(r26, 'expiry', 'r26'),
+        kitType:        getCol(r26, 'kitType', 'r26'),
+        kitStatus:      getCol(r26, 'kitStatus', 'r26'),
+        visitDispensed: getCol(r26, 'visitDispensed', 'r26'),
+        psu:            getCol(r26, 'psu', 'r26'),
+        packaging:      getCol(r26, 'packaging', 'r26'),
       };
       const r27map = {
         __allHeaders: r27Headers,
@@ -1423,7 +1432,10 @@ function runPharmacyAnalysis(useOverrides = false) {
 
       // Toast warnings for missing required columns
       const reqR28 = { 'Kit Number (R28)': r28map.kitNumber, 'Subject (R28)': r28map.subject, 'Visit Name': r28map.visitName, 'Visit Date': r28map.visitDate };
-      const reqR26 = { 'Kit/Treatment No. (R26)': r26map.treatNumber };
+      const reqR26 = { 'Kit Number (R26)': r26map.treatNumber };
+      if (!r26map.kitStatus && !r26Headers.some(h => ['acknowledgement','receipt date','site ack','site receipt'].some(kw => h.toLowerCase().includes(kw)))) {
+        toast('⚠ No "Current Kit Status" or site acknowledgement column found in Supply file — classification may be limited', 5000);
+      }
       [...Object.entries(reqR28), ...Object.entries(reqR26)].forEach(([name, col]) => {
         if (!col) toast(`⚠ Could not detect "${name}" column — check Column Mapping`, 4000);
       });
@@ -1448,7 +1460,8 @@ function runPharmacyAnalysis(useOverrides = false) {
           }
         }
         kits.forEach(kit => {
-          if (!kitDispensed[kit]) {
+          // Keep the latest dispensing event (overwrite only if newer date)
+          if (!kitDispensed[kit] || (date && kitDispensed[kit].date && date > kitDispensed[kit].date)) {
             kitDispensed[kit] = { subject: subj, visit, visitOrder: vo, date };
           }
         });
@@ -1468,6 +1481,18 @@ function runPharmacyAnalysis(useOverrides = false) {
 
       // ── Parse R26 & classify ──────────────────────────
       const classifiedKits = [];
+      // Detect whether this R26 uses direct status column (Endpoint IWRS style)
+      const useDirectStatus = !!r26map.kitStatus;
+
+      // ── Medication type detection ─────────────────────
+      function detectMedType(kitTypeName) {
+        const t = (kitTypeName || '').toLowerCase();
+        const tabletKws = ['tablet','capsule','oral','pill','teriflunomide'];
+        const vialKws   = ['vial','infusion','injection','solution','intravenous','subcutaneous','frexalimab','ofatumumab','natalizumab','ocrelizumab'];
+        if (tabletKws.some(k => t.includes(k))) return 'tablet';
+        if (vialKws.some(k => t.includes(k)))   return 'vial';
+        return 'unknown';
+      }
 
       r26.forEach(row => {
         const treatNum = r26map.treatNumber ? String(row[r26map.treatNumber] || '').trim() : '';
@@ -1476,67 +1501,122 @@ function runPharmacyAnalysis(useOverrides = false) {
         const expiry   = r26map.expiry     ? String(row[r26map.expiry]     || '').trim() : '';
         const kitType  = r26map.kitType    ? String(row[r26map.kitType]    || '').trim() : '';
         const subj26   = r26map.subject    ? row[r26map.subject] : null;
+        const directStatus = r26map.kitStatus ? String(row[r26map.kitStatus] || '').trim().toLowerCase() : '';
+        const visitDisp = r26map.visitDispensed ? String(row[r26map.visitDispensed] || '').trim() : '';
+        const medType   = detectMedType(kitType);
+        // Declare dispensed at callback scope so it's accessible at push time
+        const dispensed = subj26 && String(subj26).trim() !== '' && String(subj26).trim() !== 'n/a';
 
         if (!treatNum) return; // skip empty rows
 
-        // Site acknowledgement — loosened OR detection
-        const ackCol  = detectSiteAckCol(row);
-        const received = ackCol && row[ackCol] && String(row[ackCol]).trim() !== '' && String(row[ackCol]).trim() !== 'n/a';
-
-        // Depot return / destruction — OR detection
-        const depotCol = detectDepotReturnCol(row);
-        const hasLeft  = depotCol && row[depotCol] && String(row[depotCol]).trim() !== '' && String(row[depotCol]).trim() !== 'n/a';
-
-        const dispensed = subj26 && String(subj26).trim() !== '' && String(subj26).trim() !== 'n/a';
-
         let status, color, note, nextInfo = '';
 
-        if (!received) {
-          status = 'not_received'; color = 'gray';
-          note = 'Awaiting site acknowledgement';
-        } else if (hasLeft) {
-          status = 'left_site'; color = 'blue';
-          note = 'Returned to depot or destroyed';
-        } else if (!dispensed) {
-          // No subject assigned — check kitDispensed via treatNum
-          const kdByTreat = kitDispensed[treatNum];
-          if (kdByTreat) {
-            const lv = subjLastVisit[kdByTreat.subject];
-            if (lv && lv.visitOrder > kdByTreat.visitOrder) {
-              status = 'returned'; color = 'yellow';
-              note = `Dispensed at ${kdByTreat.visit}. Patient later attended ${lv.visit} — likely returned.`;
+        if (useDirectStatus) {
+          // ── Endpoint IWRS style: classify via Current Kit Status ──
+          if (directStatus === 'available') {
+            status = 'available'; color = 'green';
+            note = medType === 'vial'
+              ? '⚠ Confirm physical presence in fridge/cold storage before signing Master Log'
+              : '⚠ Confirm physical presence in pharmacy before signing Master Log';
+          } else if (directStatus === 'damaged' || directStatus === 'destroyed') {
+            status = 'left_site'; color = 'blue';
+            note = 'Damaged / removed from inventory';
+          } else if (directStatus === 'assigned') {
+            const kd = kitDispensed[treatNum];
+            const effectiveSubj = (kd && kd.subject) || (dispensed ? String(subj26) : null);
+
+            if (!effectiveSubj && !kd) {
+              status = 'dispensed_unknown'; color = 'yellow';
+              note = visitDisp ? `Assigned at ${visitDisp} — cross-check Master Log & Participant Log` : 'Assigned — cross-check Master Log & Participant Log';
             } else {
-              status = 'with_patient'; color = 'red';
-              const nv = subjNextVisit[kdByTreat.subject];
-              nextInfo = nv ? `${nv.visit}${nv.date ? ' · ' + fmtDate(nv.date) : ''}` : '';
-              note = `Dispensed at ${kdByTreat.visit} on ${fmtDate(kdByTreat.date)}.`;
+              const lv = effectiveSubj ? subjLastVisit[effectiveSubj] : null;
+              const dispVisit = (kd && kd.visit) || visitDisp || 'unknown visit';
+              const dispDate  = kd ? kd.date : null;
+              if (lv && kd && lv.visitOrder > kd.visitOrder) {
+                status = 'returned'; color = 'yellow';
+                note = medType === 'vial'
+                  ? `Single-use vial. Used at ${dispVisit}. Patient attended ${lv.visit} — verify disposal/destruction in Master Log (N).`
+                  : `Dispensed at ${dispVisit}. Patient attended ${lv.visit} — tablets likely returned. Verify quantity in Participant Log.`;
+              } else {
+                status = 'with_patient'; color = 'red';
+                const nv = effectiveSubj ? subjNextVisit[effectiveSubj] : null;
+                nextInfo = nv ? `${nv.visit}${nv.date ? ' · ' + fmtDate(nv.date) : ''}` : '';
+                note = medType === 'vial'
+                  ? `Single-use vial. Dispensed at ${dispVisit}${dispDate ? ' on ' + fmtDate(dispDate) : ''}. Verify D entry in Master Log & Participant Log.`
+                  : medType === 'tablet'
+                    ? `Tablets with patient. Dispensed at ${dispVisit}${dispDate ? ' on ' + fmtDate(dispDate) : ''}. Verify quantity & compliance in Participant Log.`
+                    : `Dispensed at ${dispVisit}${dispDate ? ' on ' + fmtDate(dispDate) : ''}.`;
+              }
             }
           } else {
-            status = 'available'; color = 'green';
-            note = 'Never dispensed — should be in pharmacy/fridge';
+            status = 'dispensed_unknown'; color = 'yellow';
+            note = `Status: ${directStatus || 'unknown'} — verify manually`;
           }
         } else {
-          const kd = kitDispensed[treatNum];
-          if (!kd) {
-            status = 'dispensed_unknown'; color = 'yellow';
-            note = `Dispensed to ${subj26}, no R28 visit data found — verify manually`;
-          } else {
-            const lv = subjLastVisit[kd.subject];
-            if (lv && lv.visitOrder > kd.visitOrder) {
-              status = 'returned'; color = 'yellow';
-              note = `Dispensed at ${kd.visit}. Patient later attended ${lv.visit} — likely returned.`;
+          // ── Legacy style: classify via site ack / depot return dates ──
+          // dispensed already declared at callback scope above
+          const ackCol  = detectSiteAckCol(row);
+          const received = ackCol && row[ackCol] && String(row[ackCol]).trim() !== '' && String(row[ackCol]).trim() !== 'n/a';
+
+          const depotCol = detectDepotReturnCol(row);
+          const hasLeft  = depotCol && row[depotCol] && String(row[depotCol]).trim() !== '' && String(row[depotCol]).trim() !== 'n/a';
+
+          if (!received) {
+            status = 'not_received'; color = 'gray';
+            note = 'Awaiting site acknowledgement';
+          } else if (hasLeft) {
+            status = 'left_site'; color = 'blue';
+            note = 'Returned to depot or destroyed';
+          } else if (!dispensed) {
+            const kdByTreat = kitDispensed[treatNum];
+            if (kdByTreat) {
+              const lv = subjLastVisit[kdByTreat.subject];
+              if (lv && lv.visitOrder > kdByTreat.visitOrder) {
+                status = 'returned'; color = 'yellow';
+                note = medType === 'vial'
+                  ? `Single-use vial. Used at ${kdByTreat.visit}. Patient attended ${lv.visit} — verify disposal/destruction in Master Log (N).`
+                  : `Dispensed at ${kdByTreat.visit}. Patient attended ${lv.visit} — tablets likely returned. Verify Participant Log.`;
+              } else {
+                status = 'with_patient'; color = 'red';
+                const nv = subjNextVisit[kdByTreat.subject];
+                nextInfo = nv ? `${nv.visit}${nv.date ? ' · ' + fmtDate(nv.date) : ''}` : '';
+                note = medType === 'vial'
+                  ? `Single-use vial. Dispensed at ${kdByTreat.visit} on ${fmtDate(kdByTreat.date)}. Verify D in Master Log & Participant Log.`
+                  : `Tablets with patient. Dispensed at ${kdByTreat.visit} on ${fmtDate(kdByTreat.date)}. Verify Participant Log.`;
+              }
             } else {
-              status = 'with_patient'; color = 'red';
-              const nv = subjNextVisit[kd.subject];
-              const dispDateStr = fmtDate(kd.date);
-              nextInfo = nv ? `${nv.visit}${nv.date ? ' · ' + fmtDate(nv.date) : ''}` : '';
-              note = `Dispensed at ${kd.visit} on ${dispDateStr}. Return expected at next visit.`;
+              status = 'available'; color = 'green';
+              note = medType === 'vial'
+                ? '⚠ Confirm physical presence in fridge/cold storage before signing Master Log'
+                : '⚠ Confirm physical presence in pharmacy before signing Master Log';
+            }
+          } else {
+            const kd = kitDispensed[treatNum];
+            if (!kd) {
+              status = 'dispensed_unknown'; color = 'yellow';
+              note = `Dispensed to ${subj26} — no R28 visit data. Cross-check Master Log & Participant Log`;
+            } else {
+              const lv = subjLastVisit[kd.subject];
+              if (lv && lv.visitOrder > kd.visitOrder) {
+                status = 'returned'; color = 'yellow';
+                note = medType === 'vial'
+                  ? `Single-use vial. Used at ${kd.visit}. Patient attended ${lv.visit} — verify disposal/destruction in Master Log (N).`
+                  : `Dispensed at ${kd.visit}. Patient attended ${lv.visit} — tablets likely returned. Verify Participant Log.`;
+              } else {
+                status = 'with_patient'; color = 'red';
+                const nv = subjNextVisit[kd.subject];
+                const dispDateStr = fmtDate(kd.date);
+                nextInfo = nv ? `${nv.visit}${nv.date ? ' · ' + fmtDate(nv.date) : ''}` : '';
+                note = medType === 'vial'
+                  ? `Single-use vial. Dispensed at ${kd.visit} on ${dispDateStr}. Verify D in Master Log & Participant Log.`
+                  : `Tablets with patient. Dispensed at ${kd.visit} on ${dispDateStr}. Verify quantity & compliance in Participant Log.`;
+              }
             }
           }
         }
 
         classifiedKits.push({
-          treatNum, pkg, psu, expiry, kitType,
+          treatNum, pkg, psu, expiry, kitType, medType,
           subject: dispensed ? String(subj26) : null,
           dispensedVisit: kitDispensed[treatNum]?.visit || null,
           dispensedDate:  kitDispensed[treatNum]?.date  || null,
@@ -1560,6 +1640,176 @@ function runPharmacyAnalysis(useOverrides = false) {
       toast('Analysis error: ' + err.message);
     }
   }, 50);
+}
+
+// ════════════════════════════════════════════════════════
+//  PHARMACY RENDER / FILTER / EXPORT
+// ════════════════════════════════════════════════════════
+
+const STATUS_LABELS = {
+  available:         { dot: 'green',  text: 'green',  label: '🟢 In Pharmacy' },
+  with_patient:      { dot: 'red',    text: 'red',    label: '🔴 With Patient' },
+  returned:          { dot: 'yellow', text: 'yellow', label: '🟡 Likely Returned' },
+  dispensed_unknown: { dot: 'yellow', text: 'yellow', label: '🟡 Verify Manually' },
+  left_site:         { dot: 'blue',   text: 'blue',   label: '🔵 Left Site' },
+  not_received:      { dot: 'gray',   text: 'gray',   label: '⬜ Not Received' },
+};
+
+const MED_TYPE_BADGE = {
+  tablet:  '<span style="font-size:10px;background:rgba(0,212,255,0.12);color:var(--accent);border-radius:8px;padding:1px 7px;margin-left:4px;">💊 oral</span>',
+  vial:    '<span style="font-size:10px;background:rgba(255,107,53,0.12);color:var(--orange);border-radius:8px;padding:1px 7px;margin-left:4px;">💉 vial</span>',
+  unknown: '',
+};
+
+function renderPharmResults() {
+  const kits = state.pharm.kits;
+  const filter = state.pharm.currentFilter || 'all';
+
+  // ── Stats bar ──
+  const counts = { available:0, with_patient:0, returned:0, dispensed_unknown:0, left_site:0, not_received:0 };
+  kits.forEach(k => { if (counts[k.status] !== undefined) counts[k.status]++; });
+  document.getElementById('pharm-stats').innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+      <div style="background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.3);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--green);">🟢 ${counts.available} In Pharmacy</div>
+      <div style="background:rgba(255,71,87,0.1);border:1px solid rgba(255,71,87,0.3);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--red);">🔴 ${counts.with_patient} With Patient</div>
+      <div style="background:rgba(255,211,42,0.1);border:1px solid rgba(255,211,42,0.3);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--yellow);">🟡 ${counts.returned + counts.dispensed_unknown} Verify/Returned</div>
+      <div style="background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--accent);">🔵 ${counts.left_site} Left Site</div>
+    </div>`;
+  document.getElementById('pharm-subtitle').textContent = `${kits.length} kits · ${counts.available} to verify in pharmacy`;
+
+  // ── Filter ──
+  const visible = filter === 'all' ? kits
+    : filter === 'available' ? kits.filter(k => k.status === 'available')
+    : filter === 'returned'  ? kits.filter(k => k.status === 'returned' || k.status === 'dispensed_unknown')
+    : filter === 'patient'   ? kits.filter(k => k.status === 'with_patient')
+    : kits;
+
+  // ── Render cards ──
+  const list = document.getElementById('pharm-kit-list');
+  if (visible.length === 0) {
+    list.innerHTML = '<div class="empty-state" style="padding:40px 0;"><div class="empty-icon">📦</div><p>No kits in this category.</p></div>';
+    return;
+  }
+
+  list.innerHTML = visible.map((k, i) => {
+    const sl = STATUS_LABELS[k.status] || { dot:'gray', text:'gray', label: k.status };
+    const typeBadge = MED_TYPE_BADGE[k.medType] || '';
+    const expiryStr = k.expiry ? `<div class="kit-meta-field">Expiry <b>${k.expiry}</b></div>` : '';
+    const subjStr   = k.subject ? `<div class="kit-meta-field">Subject <b>${k.subject}</b></div>` : '';
+    const psuStr    = k.psu ? `<div class="kit-meta-field">PSU <b>${k.psu}</b></div>` : '';
+    const nextStr   = k.nextVisitInfo ? `<div class="kit-next">Next: ${k.nextVisitInfo}</div>` : '';
+    return `<div class="kit-card k-${sl.dot}" onclick="showKitDetail(${kits.indexOf(k)})">
+      <div class="kit-card-top">
+        <span class="kit-num">${k.treatNum}</span>
+        ${typeBadge}
+        <span class="kit-ip">${k.kitType ? k.kitType.slice(0,28) : ''}</span>
+      </div>
+      <div class="kit-meta">
+        ${subjStr}${expiryStr}${psuStr}
+      </div>
+      <div class="kit-status-row">
+        <div class="status-dot d-${sl.dot}"></div>
+        <span class="status-text t-${sl.text}">${k.note}</span>
+        ${nextStr}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Show results view
+  document.getElementById('pharm-setup-view').style.display = 'none';
+  document.getElementById('pharm-results-view').style.display = 'flex';
+}
+
+function filterKits(filter, el) {
+  state.pharm.currentFilter = filter;
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderPharmResults();
+}
+
+function showKitDetail(idx) {
+  const k = state.pharm.kits[idx];
+  if (!k) return;
+  const sl = STATUS_LABELS[k.status] || { dot:'gray', label: k.status };
+  const typeBadge = MED_TYPE_BADGE[k.medType] || '';
+  const rows = [
+    ['Kit Number',    k.treatNum],
+    ['Kit Type',      k.kitType || '—'],
+    ['Med Type',      (k.medType === 'tablet' ? '💊 Oral / Tablet' : k.medType === 'vial' ? '💉 Vial / Infusion' : '—')],
+    ['Subject',       k.subject || '—'],
+    ['Expiry',        k.expiry || '—'],
+    ['PSU',           k.psu || '—'],
+    ['Packaging No.', k.pkg || '—'],
+    ['Status',        `<span style="color:var(--${sl.dot === 'blue' ? 'accent' : sl.dot === 'gray' ? 'text-muted' : sl.dot})">${sl.label}</span>`],
+    ['Note',          k.note],
+    ['Next Visit',    k.nextVisitInfo || '—'],
+  ].map(([lbl, val]) => `<div class="detail-row"><span class="detail-lbl">${lbl}</span><span class="detail-val">${val}</span></div>`).join('');
+
+  document.getElementById('kd-title').innerHTML = `Kit ${k.treatNum} ${typeBadge}`;
+  document.getElementById('kd-content').innerHTML = rows;
+  document.getElementById('kit-detail-modal').classList.add('show');
+}
+
+function resetPharmacy() {
+  state.pharm = { r26:null, r27:null, r28:null, kits:[], currentFilter:'all' };
+  pharmWorkbooks.r26 = null; pharmWorkbooks.r28 = null; pharmWorkbooks.r27 = null;
+  currentColMap = { r26:{}, r28:{}, r27:{} };
+  const mp = document.getElementById('col-mapping-panel'); if(mp) mp.style.display='none';
+  ['r26','r28','r27'].forEach(r => {
+    const hs = document.getElementById(`${r}-sheet-selector`); if(hs) hs.style.display='none';
+    const hp = document.getElementById(`${r}-headers`); if(hp) hp.innerHTML='';
+    const zone  = document.getElementById(`${r}-zone`);  if(zone)  zone.classList.remove('loaded');
+    const label = document.getElementById(`${r}-label`); if(label) label.textContent = `Upload ${r === 'r26' ? 'Study Supply (Numbered)' : r === 'r28' ? 'Subject Visit Summary' : 'Site Supply Summary'}`;
+    const file  = document.getElementById(`${r}-file`);  if(file)  file.value = '';
+  });
+  document.getElementById('pharm-analyze-btn').disabled = true;
+  document.getElementById('pharm-setup-view').style.display = 'block';
+  document.getElementById('pharm-results-view').style.display = 'none';
+}
+
+function exportPharmReport() {
+  const kits = state.pharm.kits;
+  if (!kits || kits.length === 0) { toast('No data to export'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // ── Tab 1: Full list ──
+  const headers = ['Kit Number','Kit Type','Med Type','Subject','Expiry','PSU','Packaging No.','Status','Note','Next Visit Info'];
+  const rows = kits.map(k => [
+    k.treatNum, k.kitType, k.medType === 'tablet' ? 'Oral/Tablet' : k.medType === 'vial' ? 'Vial/Infusion' : '—',
+    k.subject || '', k.expiry, k.psu, k.pkg,
+    STATUS_LABELS[k.status]?.label || k.status,
+    k.note, k.nextVisitInfo || ''
+  ]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headers, ...rows]), 'All Kits');
+
+  // ── Tab 2: In Pharmacy (verify) ──
+  const avail = kits.filter(k => k.status === 'available');
+  const availRows = avail.map(k => [k.treatNum, k.kitType, k.expiry, k.psu, '', '', '']);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['Kit Number','Kit Type','Expiry','PSU','Physically Verified (Y/N)','Monitor Initials','Date'],
+    ...availRows
+  ]), '✅ Verify in Pharmacy');
+
+  // ── Tab 3: With Patient ──
+  const withPt = kits.filter(k => k.status === 'with_patient');
+  const ptRows = withPt.map(k => [k.treatNum, k.kitType, k.medType === 'vial' ? 'Vial' : 'Tablet', k.subject || '', k.note, k.nextVisitInfo || '', '', '']);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['Kit Number','Kit Type','Med Type','Subject','Note','Next Visit','Monitor Initials','Date'],
+    ...ptRows
+  ]), '🔴 With Patient');
+
+  // ── Tab 4: Verify/Returned ──
+  const toVerify = kits.filter(k => k.status === 'returned' || k.status === 'dispensed_unknown');
+  const verRows = toVerify.map(k => [k.treatNum, k.kitType, k.subject || '', k.note, '', '']);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['Kit Number','Kit Type','Subject','Note','Monitor Initials','Date'],
+    ...verRows
+  ]), '🟡 Verify/Returned');
+
+  const date = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb, `PharmacyInventory_${date}.xlsx`);
+  toast('✓ Excel report exported');
 }
 
 // ════════════════════════════════════════════════════════
