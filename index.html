@@ -1771,45 +1771,65 @@ function exportPharmReport() {
   const kits = state.pharm.kits;
   if (!kits || kits.length === 0) { toast('No data to export'); return; }
 
-  const wb = XLSX.utils.book_new();
+  try {
+    const wb = XLSX.utils.book_new();
 
-  // ── Tab 1: Full list ──
-  const headers = ['Kit Number','Kit Type','Med Type','Subject','Expiry','PSU','Packaging No.','Status','Note','Next Visit Info'];
-  const rows = kits.map(k => [
-    k.treatNum, k.kitType, k.medType === 'tablet' ? 'Oral/Tablet' : k.medType === 'vial' ? 'Vial/Infusion' : '—',
-    k.subject || '', k.expiry, k.psu, k.pkg,
-    STATUS_LABELS[k.status]?.label || k.status,
-    k.note, k.nextVisitInfo || ''
-  ]);
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headers, ...rows]), 'All Kits');
+    // Tab 1: Full list
+    const headers = ['Kit Number','Kit Type','Med Type','Subject','Expiry','PSU','Packaging No.','Status','Note','Next Visit Info'];
+    const rows = kits.map(k => [
+      k.treatNum, k.kitType || '',
+      k.medType === 'tablet' ? 'Oral/Tablet' : k.medType === 'vial' ? 'Vial/Infusion' : 'Unknown',
+      k.subject || '', k.expiry || '', k.psu || '', k.pkg || '',
+      (STATUS_LABELS[k.status]?.label || k.status).replace(/[^\x00-\x7E]/g, '').trim(),
+      k.note || '', k.nextVisitInfo || ''
+    ]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headers, ...rows]), 'All Kits');
 
-  // ── Tab 2: In Pharmacy (verify) ──
-  const avail = kits.filter(k => k.status === 'available');
-  const availRows = avail.map(k => [k.treatNum, k.kitType, k.expiry, k.psu, '', '', '']);
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-    ['Kit Number','Kit Type','Expiry','PSU','Physically Verified (Y/N)','Monitor Initials','Date'],
-    ...availRows
-  ]), '✅ Verify in Pharmacy');
+    // Tab 2: In Pharmacy
+    const avail = kits.filter(k => k.status === 'available');
+    const availRows = avail.map(k => [k.treatNum, k.kitType || '', k.expiry || '', k.psu || '', '', '', '']);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Kit Number','Kit Type','Expiry','PSU','Physically Verified (Y/N)','Monitor Initials','Date'],
+      ...availRows
+    ]), 'Verify in Pharmacy');
 
-  // ── Tab 3: With Patient ──
-  const withPt = kits.filter(k => k.status === 'with_patient');
-  const ptRows = withPt.map(k => [k.treatNum, k.kitType, k.medType === 'vial' ? 'Vial' : 'Tablet', k.subject || '', k.note, k.nextVisitInfo || '', '', '']);
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-    ['Kit Number','Kit Type','Med Type','Subject','Note','Next Visit','Monitor Initials','Date'],
-    ...ptRows
-  ]), '🔴 With Patient');
+    // Tab 3: With Patient
+    const withPt = kits.filter(k => k.status === 'with_patient');
+    const ptRows = withPt.map(k => [k.treatNum, k.kitType || '', k.medType === 'vial' ? 'Vial' : 'Tablet', k.subject || '', k.note || '', k.nextVisitInfo || '', '', '']);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Kit Number','Kit Type','Med Type','Subject','Note','Next Visit','Monitor Initials','Date'],
+      ...ptRows
+    ]), 'With Patient');
 
-  // ── Tab 4: Verify/Returned ──
-  const toVerify = kits.filter(k => k.status === 'returned' || k.status === 'dispensed_unknown');
-  const verRows = toVerify.map(k => [k.treatNum, k.kitType, k.subject || '', k.note, '', '']);
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-    ['Kit Number','Kit Type','Subject','Note','Monitor Initials','Date'],
-    ...verRows
-  ]), '🟡 Verify/Returned');
+    // Tab 4: Verify-Returned
+    const toVerify = kits.filter(k => k.status === 'returned' || k.status === 'dispensed_unknown');
+    const verRows = toVerify.map(k => [k.treatNum, k.kitType || '', k.subject || '', k.note || '', '', '']);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Kit Number','Kit Type','Subject','Note','Monitor Initials','Date'],
+      ...verRows
+    ]), 'Verify-Returned');
 
-  const date = new Date().toISOString().split('T')[0];
-  XLSX.writeFile(wb, `PharmacyInventory_${date}.xlsx`);
-  toast('✓ Excel report exported');
+    const date = new Date().toISOString().split('T')[0];
+    const filename = 'PharmacyInventory_' + date + '.xlsx';
+
+    // Primary: XLSX.writeFile — fallback: manual blob (mobile / GitHub Pages)
+    try {
+      XLSX.writeFile(wb, filename);
+    } catch(e) {
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(function() { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+    }
+
+    toast('Exported: ' + filename);
+  } catch(err) {
+    console.error('Export error:', err);
+    toast('Export failed: ' + err.message, 4000);
+  }
 }
 
 // ════════════════════════════════════════════════════════
