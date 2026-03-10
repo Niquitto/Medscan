@@ -2083,34 +2083,28 @@ async function startPharmScan() {
   document.getElementById('pharm-scan-feedback').style.display = 'none';
 
   const video = document.getElementById('pharm-scan-video');
+  const statusEl = document.getElementById('pharm-scan-status');
   try {
     let stream;
     try { stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}}); }
     catch(e) { stream = await navigator.mediaDevices.getUserMedia({video:true}); }
     pharmScanStream = stream;
     video.srcObject = stream;
+    await new Promise((res,rej) => { video.onloadedmetadata=res; video.onerror=rej; setTimeout(rej,5000); });
     await video.play();
-    // Use ZXing if available (same lib as Kit Scanning)
+    statusEl.textContent = 'Apuntá al código de la caja';
     if (window.ZXing) {
-      const hints = new Map();
-      const fmts = [
-        ZXing.BarcodeFormat.DATA_MATRIX,
-        ZXing.BarcodeFormat.QR_CODE,
-        ZXing.BarcodeFormat.CODE_128,
-        ZXing.BarcodeFormat.CODE_39,
-        ZXing.BarcodeFormat.ITF,
-        ZXing.BarcodeFormat.EAN_13,
-      ];
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, fmts);
-      pharmScanReader = new ZXing.BrowserMultiFormatReader(hints);
-      pharmScanReader.decodeFromVideoElement(video, (result, err) => {
+      pharmScanReader = new ZXing.BrowserMultiFormatReader();
+      pharmScanReader.decodeFromStream(pharmScanStream, video, (result) => {
         if (result) handlePharmScanResult(result.getText());
       });
     } else {
-      document.getElementById('pharm-scan-status').textContent = 'Scanner no disponible — usá entrada manual';
+      statusEl.textContent = 'Scanner no disponible';
     }
   } catch(err) {
-    document.getElementById('pharm-scan-status').textContent = 'Error de cámara: ' + (err.name === 'NotAllowedError' ? 'Permiso denegado' : err.message);
+    const msg = err.name === 'NotAllowedError' ? 'Permiso de cámara denegado' : err.message;
+    statusEl.textContent = 'Error: ' + msg;
+    toast('⚠ ' + msg);
   }
 }
 
