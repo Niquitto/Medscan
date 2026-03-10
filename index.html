@@ -1247,7 +1247,8 @@ const COL_ALIASES = {
   // R26
   treatNumber:    ['Kit Number','Treatment Number','Kit No','Kit ID','IRT Kit Number','Dispensing Number','Treatment Kit','Kit Number(s) Assigned'],
   packaging:      ['Packaging Number','Package Number','Pkg No','Batch Number'],
-  psu:            ['PSU Number','PSU','Package','Pack Number'],
+  lot:            ['Lot Number','Lot No','LotNumber','LOT','Lot Number(s) Assigned','Lot Number(s)','Batch Number','Batch No'],
+  psu:            ['PSU Number','PSU','Pack Number'],
   expiry:         ['Expiry Date','Expiration Date','EXP Date','Exp','Use By Date'],
   kitType:        ['Blinded Kit Name','Kit Type','Kit Description','Treatment Type','Treatment Name','IP Type','Drug Type','Drug Name','Medication Type'],
   kitStatus:      ['Current Kit Status','Kit Status','IRT Status','Kit Current Status','Dispensed Status'],
@@ -1450,6 +1451,7 @@ function fmtDate(d) {
 }
 
 function runPharmacyAnalysis(useOverrides = false) {
+  updatePharmSession();
   if (!state.pharm.r26 || !state.pharm.r28) { toast('Study Supply Summary and Subject Visit Summary required'); return; }
   showLoading('Analyzing inventory…');
 
@@ -1487,6 +1489,7 @@ function runPharmacyAnalysis(useOverrides = false) {
         kitType:        getCol(r26, 'kitType', 'r26'),
         kitStatus:      getCol(r26, 'kitStatus', 'r26'),
         visitDispensed: getCol(r26, 'visitDispensed', 'r26'),
+        lot:            getCol(r26, 'lot', 'r26'),
         psu:            getCol(r26, 'psu', 'r26'),
         packaging:      getCol(r26, 'packaging', 'r26'),
       };
@@ -1612,6 +1615,7 @@ function runPharmacyAnalysis(useOverrides = false) {
       r26.forEach(row => {
         const treatNum = r26map.treatNumber ? String(row[r26map.treatNumber] || '').trim() : '';
         const pkg      = r26map.packaging  ? String(row[r26map.packaging]  || '').trim() : '';
+        const lot      = r26map.lot        ? String(row[r26map.lot]        || '').trim() : '';
         const psu      = r26map.psu        ? String(row[r26map.psu]        || '').trim() : '';
         const expiry   = r26map.expiry     ? String(row[r26map.expiry]     || '').trim() : '';
         const kitType  = r26map.kitType    ? String(row[r26map.kitType]    || '').trim() : '';
@@ -1731,7 +1735,7 @@ function runPharmacyAnalysis(useOverrides = false) {
         }
 
         classifiedKits.push({
-          treatNum, pkg, psu, expiry, kitType, medType,
+          treatNum, lot, pkg, psu, expiry, kitType, medType,
           subject: dispensed ? String(subj26) : null,
           dispensedVisit: kitDispensed[treatNum]?.visit || null,
           dispensedDate:  kitDispensed[treatNum]?.date  || null,
@@ -1911,11 +1915,39 @@ function exportLMR() {
   const protocol = s.protocol || 'XXXXXXX';
   const siteNum  = s.siteNum  || 'XXXXXXX';
   const suggestedId = 'IMP-' + protocol + '-' + siteNum + '-' + dateStr;
-  const envioId = prompt(
-    'Número de envío (Celda C3):\n\nSugerido: ' + suggestedId + '\n\nEditá si es necesario:',
-    suggestedId
-  );
-  if (envioId === null) return;
+  // Show inline modal instead of prompt() (blocked in PWA/iOS standalone mode)
+  showEnvioModal(suggestedId, function(envioId) { _doExportLMR(kits, s, envioId, dateStr, excelDate, siteNum); });
+}
+
+function showEnvioModal(suggested, onConfirm) {
+  const existing = document.getElementById('envio-modal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'envio-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  modal.innerHTML =
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;width:100%;max-width:340px;">'
+    + '<p style="margin:0 0 6px;font-weight:700;font-size:14px;">N\u00famero de env\u00edo</p>'
+    + '<p style="margin:0 0 12px;font-size:11px;color:var(--text-muted);">Celda C3 del LMR \u2014 edit\u00e1 si es necesario</p>'
+    + '<input id="envio-input" type="text" value="' + suggested + '"'
+    + ' style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);box-sizing:border-box;margin-bottom:14px;">'
+    + '<div style="display:flex;gap:8px;">'
+    + '<button onclick="document.getElementById(\'envio-modal\').remove()" style="flex:1;padding:9px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);cursor:pointer;font-size:13px;">Cancelar</button>'
+    + '<button id="envio-confirm" style="flex:1;padding:9px;border:none;border-radius:8px;background:var(--accent);color:var(--bg);cursor:pointer;font-weight:700;font-size:13px;">Confirmar</button>'
+    + '</div></div>';
+  document.body.appendChild(modal);
+  const input = document.getElementById('envio-input');
+  input.focus(); input.select();
+  document.getElementById('envio-confirm').onclick = function() {
+    const val = input.value.trim();
+    if (!val) { input.style.borderColor='var(--red)'; return; }
+    modal.remove();
+    onConfirm(val);
+  };
+  input.onkeydown = function(e) { if (e.key === 'Enter') document.getElementById('envio-confirm').click(); };
+}
+
+function _doExportLMR(kits, s, envioId, dateStr, excelDate, siteNum) {
   try {
     const wb = XLSX.utils.book_new();
     const ws = {};
@@ -1949,7 +1981,7 @@ function exportLMR() {
       set(2, row, k.kitType || '—');
       set(3, row, k.treatNum || '');
       set(4, row, 1);
-      set(5, row, k.psu || k.pkg || '');
+      set(5, row, k.lot || k.psu || '');
       set(6, row, k.expiry || '');
     });
     const range = {s:{c:0,r:0}, e:{c:5, r:11+kits.length}};
@@ -2062,6 +2094,7 @@ function toggleKitSelect(idx, checkbox) {
 let pharmScanStream = null;
 let pharmScanReader = null;
 let pharmScanCount  = 0;
+let pharmScanActive = false;
 
 function normSN(s) {
   // Normalize serial number: strip leading zeros for comparison
@@ -2093,6 +2126,7 @@ async function startPharmScan() {
     await new Promise((res,rej) => { video.onloadedmetadata=res; video.onerror=rej; setTimeout(rej,5000); });
     await video.play();
     statusEl.textContent = 'Apuntá al código de la caja';
+    pharmScanActive = true;
     if (window.ZXing) {
       pharmScanReader = new ZXing.BrowserMultiFormatReader();
       pharmScanReader.decodeFromStream(pharmScanStream, video, (result) => {
@@ -2112,6 +2146,7 @@ let pharmLastScan = '';
 let pharmLastScanTime = 0;
 
 function handlePharmScanResult(text) {
+  if (!pharmScanActive) return;
   // Debounce: ignore same code within 2 seconds
   const now = Date.now();
   if (text === pharmLastScan && now - pharmLastScanTime < 2000) return;
@@ -2167,7 +2202,8 @@ function handlePharmScanResult(text) {
 }
 
 function stopPharmScan() {
-  if (pharmScanReader) { try { pharmScanReader.reset(); } catch(e){} pharmScanReader = null; }
+  pharmScanActive = false;
+  if (pharmScanReader) { try { pharmScanReader.stopContinuousDecode(); pharmScanReader.reset(); } catch(e){} pharmScanReader = null; }
   if (pharmScanStream) { pharmScanStream.getTracks().forEach(t => t.stop()); pharmScanStream = null; }
   const overlay = document.getElementById('pharm-scan-overlay');
   if (overlay) overlay.style.display = 'none';
