@@ -150,6 +150,13 @@
   .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
   .btn-danger { background: rgba(255,71,87,0.15); color: var(--red); border: 1px solid rgba(255,71,87,0.3); }
   .btn-success { background: var(--green); color: var(--bg); }
+  .kit-card.selected { outline: 2px solid var(--accent); background: rgba(0,212,255,0.07); }
+  .kit-checkbox { width:18px;height:18px;accent-color:var(--accent);cursor:pointer;flex-shrink:0; }
+  .lmr-fab { position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:100;
+    background:var(--accent);color:var(--bg);border:none;border-radius:24px;padding:10px 22px;
+    font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,212,255,0.4);
+    display:none;white-space:nowrap;transition:all .2s; }
+  .lmr-fab.visible { display:block; }
   .btn-success:hover { background: #00ffb3; }
   .btn-row { display: flex; gap: 10px; margin-top: 8px; }
   .btn-row .btn { flex: 1; }
@@ -521,7 +528,7 @@
     </div>
     <div id="panel-manual" style="display:none;">
       <div class="manual-grid">
-        <div class="field" style="margin-bottom:0;"><label>REF</label><input type="text" id="m-ref" placeholder="EFC17919" style="text-transform:uppercase;"></div>
+        <div class="field" style="margin-bottom:0;"><label>REF</label><input type="text" id="m-ref" placeholder="e.g. EFC17919" style="text-transform:uppercase;"></div>
         <div class="field" style="margin-bottom:0;"><label>SN</label><input type="text" id="m-sn" placeholder="0268366"></div>
         <div class="field" style="margin-bottom:0;"><label>PSU</label><input type="text" id="m-psu" placeholder="59133"></div>
         <div class="field" style="margin-bottom:0;"><label>LOT</label><input type="text" id="m-lot" placeholder="IP041184"></div>
@@ -608,6 +615,51 @@
     <p class="screen-title">Pharmacy<br>Inventory</p>
     <p class="screen-subtitle">Upload IWRS reports to classify which kits are in the pharmacy</p>
 
+    <!-- Session metadata -->
+    <div style="background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.2);border-radius:12px;padding:14px 16px;margin-bottom:18px;">
+      <p style="font-size:11px;font-weight:600;color:var(--accent);letter-spacing:.05em;margin:0 0 10px;">SESSION INFO</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div>
+          <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">CRA Name</label>
+          <input id="pharm-cra" type="text" placeholder="Nicolas Pourtale" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);box-sizing:border-box;" oninput="updatePharmSession()">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">Protocol / Study ID</label>
+          <input id="pharm-protocol" type="text" placeholder="EFC17919" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);text-transform:uppercase;box-sizing:border-box;" oninput="updatePharmSession()">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">Site Number</label>
+          <input id="pharm-sitenum" type="text" placeholder="0320001" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);box-sizing:border-box;" oninput="updatePharmSession()">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">Site Name</label>
+          <input id="pharm-sitename" type="text" placeholder="Focus CECIC" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);box-sizing:border-box;" oninput="updatePharmSession()">
+        </div>
+      </div>
+    </div>
+
+        <!-- Session metadata -->
+    <div style="background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.2);border-radius:12px;padding:14px 16px;margin-bottom:18px;">
+      <p style="font-size:11px;font-weight:600;color:var(--accent);letter-spacing:.05em;margin:0 0 10px;">SESSION INFO</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div>
+          <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">CRA Name</label>
+          <input id="pharm-cra" type="text" placeholder="Nicolas Pourtale" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);box-sizing:border-box;" oninput="updatePharmSession()">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">Protocol / Study ID</label>
+          <input id="pharm-protocol" type="text" placeholder="EFC17919" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);text-transform:uppercase;box-sizing:border-box;" oninput="updatePharmSession()">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">Site Number</label>
+          <input id="pharm-sitenum" type="text" placeholder="0320001" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);box-sizing:border-box;" oninput="updatePharmSession()">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">Site Name</label>
+          <input id="pharm-sitename" type="text" placeholder="Focus CECIC" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);box-sizing:border-box;" oninput="updatePharmSession()">
+        </div>
+      </div>
+    </div>
     <div class="alert-strip">
       <span>ℹ</span>
       <div>
@@ -663,6 +715,10 @@
 
       <div class="pharm-summary" id="pharm-stats"></div>
 
+      <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+        <button class="btn btn-secondary" style="font-size:11px;padding:4px 12px;height:auto;" onclick="selectKitsByStatus('available')">☑ Seleccionar todos en farmacia</button>
+        <button class="btn btn-secondary" style="font-size:11px;padding:4px 12px;height:auto;" onclick="selectKitsByStatus(null)">✕ Deseleccionar todo</button>
+      </div>
       <div class="filter-bar" id="pharm-filter-bar">
         <div class="filter-pill active" onclick="filterKits('all',this)">All</div>
         <div class="filter-pill p-green"  onclick="filterKits('available',this)">🟢 In Pharmacy</div>
@@ -670,10 +726,12 @@
         <div class="filter-pill p-red"    onclick="filterKits('patient',this)">🔴 With Patient</div>
       </div>
 
+      <button class="lmr-fab" id="lmr-fab" onclick="exportLMR()">📦 Generar LMR (<span id="lmr-count">0</span> kits seleccionados)</button>
       <div id="col-mapping-panel" style="display:none"></div>
       <div id="pharm-kit-list"></div>
 
       <button class="btn btn-success" onclick="exportPharmReport()">⬇ Export to Excel</button>
+      <button class="btn btn-secondary" onclick="exportLMR()" style="margin-top:8px;">📦 Generar LMR (Retorno)</button>
     </div>
   </div>
 </div>
@@ -727,7 +785,9 @@ const state = {
   pharm: {
     r26: null, r27: null, r28: null,
     kits: [],
-    currentFilter: 'all'
+    currentFilter: 'all',
+    selectedKits: new Set(),
+    session: { protocol:'', siteNum:'', siteName:'', cra:'', date:'', envioId:'' }
   }
 };
 
@@ -1152,13 +1212,9 @@ function exportExcel() {
 //  PHARMACY INVENTORY
 // ════════════════════════════════════════════════════════
 
-const VISIT_ORDER = {
-  'Screening':0,'Randomization - Day 1 Visit':1,'Visit 3 - Week 4':3,'Visit 4 - Week 8':4,
-  'Visit 5 - Week 12':5,'Visit 6 - Week 16':6,'Visit 7 - Week 20':7,'Visit 8 - Week 24':8,
-  'Subject Kit Replacement':8.5,'Visit 9 - Week 36':9,'Visit 10 - Week 48':10,
-  'Visit 11 - Week 60':11,'Visit 12 - Week 72':12,'Visit 13 - Week 84':13,
-  'Visit 14 - Week 96':14,'End of Treatment':99
-};
+// VISIT_ORDER is built dynamically from R28 data in runPharmacyAnalysis()
+// Fallback for Kit Scanning screen (pre-analysis context)
+let VISIT_ORDER = {};
 
 // ── EXPANDED ALIAS DICTIONARIES ──────────────────────────
 const COL_ALIASES = {
@@ -1467,7 +1523,45 @@ function runPharmacyAnalysis(useOverrides = false) {
         });
       });
 
+      // ── Build dynamic VISIT_ORDER from R28 visit dates ──
+      {
+        const visitDateAccum = {};
+        r28.forEach(row => {
+          const visit = r28map.visitName ? row[r28map.visitName] : null;
+          const date  = r28map.visitDate ? parseDate(row[r28map.visitDate]) : null;
+          if (visit && date) {
+            if (!visitDateAccum[visit]) visitDateAccum[visit] = [];
+            visitDateAccum[visit].push(date.getTime());
+          }
+        });
+        const visitEntries = Object.entries(visitDateAccum)
+          .map(([v, ts]) => [v, ts.reduce((a,b)=>a+b,0)/ts.length])
+          .sort((a,b) => a[1]-b[1]);
+        VISIT_ORDER = {};
+        visitEntries.forEach(([v], i) => { VISIT_ORDER[v] = i; });
+        console.log('[MedScan] Dynamic VISIT_ORDER built:', Object.keys(VISIT_ORDER).length, 'visits');
+      }
+
       // ── Parse R27 ─────────────────────────────────────
+            // ── Build dynamic VISIT_ORDER from R28 visit dates ──────────
+      {
+        const visitDateAccum = {};
+        r28.forEach(row => {
+          const visit = r28map.visitName ? row[r28map.visitName] : null;
+          const date  = r28map.visitDate ? parseDate(row[r28map.visitDate]) : null;
+          if (visit && date) {
+            if (!visitDateAccum[visit]) visitDateAccum[visit] = [];
+            visitDateAccum[visit].push(date.getTime());
+          }
+        });
+        const visitEntries = Object.entries(visitDateAccum)
+          .map(([v, ts]) => [v, ts.reduce((a,b)=>a+b,0)/ts.length])
+          .sort((a,b) => a[1]-b[1]);
+        VISIT_ORDER = {};
+        visitEntries.forEach(([v], i) => { VISIT_ORDER[v] = i; });
+        console.log('[MedScan] Dynamic VISIT_ORDER:', Object.keys(VISIT_ORDER).length, 'visits detected');
+      }
+
       const subjNextVisit = {};
       if (r27.length > 0 && r27map.subject) {
         r27.forEach(row => {
@@ -1661,6 +1755,209 @@ const MED_TYPE_BADGE = {
   unknown: '',
 };
 
+function updatePharmSession() {
+  const s = state.pharm.session;
+  s.cra      = document.getElementById('pharm-cra')?.value.trim() || '';
+  s.protocol = document.getElementById('pharm-protocol')?.value.trim().toUpperCase() || '';
+  s.siteNum  = document.getElementById('pharm-sitenum')?.value.trim() || '';
+  s.siteName = document.getElementById('pharm-sitename')?.value.trim() || '';
+}
+
+function fmtDateLMR(d) {
+  if (!d) { const n=new Date(); d=n; }
+  const months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  return String(d.getDate()).padStart(2,'0') + months[d.getMonth()] + d.getFullYear();
+}
+
+function exportLMR() {
+  const allKits = state.pharm.kits || [];
+  const sel = state.pharm.selectedKits;
+  if (sel.size === 0) { toast('Seleccioná al menos un kit (checkbox) para generar el LMR', 3000); return; }
+  const kits = [...sel].sort((a,b)=>a-b).map(i => allKits[i]).filter(Boolean);
+  if (!kits.length) { toast('No hay kits seleccionados válidos', 3000); return; }
+
+  const s = state.pharm.session;
+  const today = new Date();
+  const dateStr = fmtDateLMR(today);
+  const excelDate = today.toLocaleDateString('es-AR');
+
+  // Build envioId suggestion
+  const protocol = s.protocol || 'XXXXXXX';
+  const siteNum  = s.siteNum  || 'XXXXXXX';
+  const suggestedId = `IMP-${protocol}-${siteNum}-${dateStr}`;
+
+  // Ask for envioId (C3 — always manual per user)
+  const envioId = prompt(
+    `Número de envío (C3):
+
+Sugerido: ${suggestedId}
+
+Editá si es necesario:`,
+    suggestedId
+  );
+  if (envioId === null) return; // user cancelled
+
+  try {
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+
+    const set = (col, row, val) => {
+      const addr = XLSX.utils.encode_cell({c: col-1, r: row-1});
+      ws[addr] = { v: val, t: typeof val === 'number' ? 'n' : 's' };
+    };
+
+    // Header labels (col A=1)
+    set(2,1,'MONITOR:');         set(3,1, s.cra || '—');
+    set(4,1,'Código del estudio:'); set(5,1, s.protocol || '—');
+    set(2,2,'Identificación de retiro (IMP-STUDY-SITE-DATE):');
+    set(3,3, envioId);
+    set(4,3,'Fecha:');           set(5,3, excelDate);
+    set(2,4,'Ej: IMP-EFC17504-0320001-10MAR2026');
+    set(2,5,'CENTRO:');          set(3,5, s.siteName || '—');
+    set(2,6,'Persona de contacto:'); set(3,6,'');
+    set(5,6,'Caja N°:');         set(6,6, 1);
+    set(2,7,'Teléfono:');        set(3,7,'');
+    set(5,7,'Total de kits:');   set(6,7, kits.length);
+    set(2,8,'E-mail:');          set(3,8,'');
+    set(5,8,'Total de cajas:');  set(6,8, 1);
+
+    // Column headers row 9
+    set(1,9,'#');
+    set(2,9,'Material descripción');
+    set(3,9,'N° de kit / Tratamiento');
+    set(4,9,'Cantidad');
+    set(5,9,'Lote N°');
+    set(6,9,'Vencimiento');
+
+    // Kit rows start at row 12 (matching Sanofi LMR template)
+    kits.forEach((k, i) => {
+      const row = 12 + i;
+      set(1, row, i + 1);
+      set(2, row, k.kitType || '—');
+      set(3, row, k.treatNum || '');
+      set(4, row, 1);
+      set(5, row, k.psu || '');  // lot/psu
+      set(6, row, k.expiry || '');
+    });
+
+    // Set sheet range
+    const range = {s:{c:0,r:0}, e:{c:5, r:11+kits.length}};
+    ws['!ref'] = XLSX.utils.encode_range(range);
+    ws['!cols'] = [{wch:4},{wch:30},{wch:18},{wch:10},{wch:14},{wch:14}];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'completar Hoja1');
+
+    const filename = `LMR_${siteNum}_${s.cra.split(' ').pop() || 'CRA'}_${dateStr}.xlsx`;
+    try {
+      XLSX.writeFile(wb, filename);
+    } catch(e) {
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+    }
+    toast(`LMR exportado: ${kits.length} kits · ${filename}`);
+  } catch(err) {
+    console.error('LMR export error:', err);
+    toast('Error al exportar LMR: ' + err.message, 4000);
+  }
+}
+
+function updatePharmSession() {
+  const s = state.pharm.session;
+  s.cra      = document.getElementById('pharm-cra')?.value.trim() || '';
+  s.protocol = document.getElementById('pharm-protocol')?.value.trim().toUpperCase() || '';
+  s.siteNum  = document.getElementById('pharm-sitenum')?.value.trim() || '';
+  s.siteName = document.getElementById('pharm-sitename')?.value.trim() || '';
+}
+
+function fmtDateLMR(d) {
+  if (!d) { d = new Date(); }
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  return String(d.getDate()).padStart(2,'0') + months[d.getMonth()] + d.getFullYear();
+}
+
+function exportLMR() {
+  const kits = (state.pharm.kits || []).filter(k => k.status === 'available');
+  if (!kits.length) { toast('No hay kits disponibles para retornar', 3000); return; }
+  const s = state.pharm.session;
+  const today = new Date();
+  const dateStr = fmtDateLMR(today);
+  const excelDate = today.toLocaleDateString('es-AR');
+  const protocol = s.protocol || 'XXXXXXX';
+  const siteNum  = s.siteNum  || 'XXXXXXX';
+  const suggestedId = 'IMP-' + protocol + '-' + siteNum + '-' + dateStr;
+  const envioId = prompt(
+    'Número de envío (Celda C3):\n\nSugerido: ' + suggestedId + '\n\nEditá si es necesario:',
+    suggestedId
+  );
+  if (envioId === null) return;
+  try {
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const set = (col, row, val) => {
+      const addr = XLSX.utils.encode_cell({c: col-1, r: row-1});
+      ws[addr] = { v: val, t: typeof val === 'number' ? 'n' : 's' };
+    };
+    set(2,1,'MONITOR:');              set(3,1, s.cra || '—');
+    set(4,1,'Código del estudio:'); set(5,1, s.protocol || '—');
+    set(2,2,'Identificación de retiro (ej IMP-STUDY-SITE-FECHA):');
+    set(3,3, envioId);
+    set(4,3,'Fecha:');                set(5,3, excelDate);
+    set(2,4,'Ej: IMP-EFC17504-0320001-10MAR2026');
+    set(2,5,'CENTRO:');               set(3,5, s.siteName || '—');
+    set(2,6,'Persona de contacto:');  set(3,6,'');
+    set(5,6,'Caja N°:');         set(6,6, 1);
+    set(2,7,'Teléfono:');         set(3,7,'');
+    set(5,7,'Total de kits:');        set(6,7, kits.length);
+    set(2,8,'E-mail:');               set(3,8,'');
+    set(5,8,'Total de cajas:');       set(6,8, 1);
+    set(1,9,'#');
+    set(2,9,'Material descripción');
+    set(3,9,'N° de kit / Tratamiento');
+    set(4,9,'Cantidad');
+    set(5,9,'Lote N°');
+    set(6,9,'Vencimiento');
+    // Kit data starts at row 12 (matching Sanofi LMR template structure)
+    kits.forEach((k, i) => {
+      const row = 12 + i;
+      set(1, row, i + 1);
+      set(2, row, k.kitType || '—');
+      set(3, row, k.treatNum || '');
+      set(4, row, 1);
+      set(5, row, k.psu || k.pkg || '');
+      set(6, row, k.expiry || '');
+    });
+    const range = {s:{c:0,r:0}, e:{c:5, r:11+kits.length}};
+    ws['!ref'] = XLSX.utils.encode_range(range);
+    ws['!cols'] = [{wch:4},{wch:32},{wch:18},{wch:10},{wch:14},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, ws, 'completar Hoja1');
+    const craLast = s.cra ? s.cra.split(' ').pop() : 'CRA';
+    const filename = 'LMR_' + siteNum + '_' + craLast + '_' + dateStr + '.xlsx';
+    try {
+      XLSX.writeFile(wb, filename);
+    } catch(e) {
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(function() { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+    }
+    state.pharm.selectedKits.clear();
+    updateLMRFab();
+    renderPharmResults();
+    toast('LMR exportado: ' + kits.length + ' kits · ' + filename);
+  } catch(err) {
+    console.error('LMR export error:', err);
+    toast('Error al exportar LMR: ' + err.message, 4000);
+  }
+}
+
 function renderPharmResults() {
   const kits = state.pharm.kits;
   const filter = state.pharm.currentFilter || 'all';
@@ -1675,7 +1972,11 @@ function renderPharmResults() {
       <div style="background:rgba(255,211,42,0.1);border:1px solid rgba(255,211,42,0.3);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--yellow);">🟡 ${counts.returned + counts.dispensed_unknown} Verify/Returned</div>
       <div style="background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--accent);">🔵 ${counts.left_site} Left Site</div>
     </div>`;
-  document.getElementById('pharm-subtitle').textContent = `${kits.length} kits · ${counts.available} to verify in pharmacy`;
+  const sess = state.pharm.session;
+  const sessionLabel = [sess.protocol, sess.siteNum, sess.siteName].filter(Boolean).join(' · ');
+  document.getElementById('pharm-subtitle').textContent = sessionLabel
+    ? `${sessionLabel} · ${kits.length} kits`
+    : `${kits.length} kits · ${counts.available} to verify in pharmacy`;
 
   // ── Filter ──
   const visible = filter === 'all' ? kits
@@ -1692,22 +1993,26 @@ function renderPharmResults() {
   }
 
   list.innerHTML = visible.map((k, i) => {
+    const globalIdx = kits.indexOf(k);
     const sl = STATUS_LABELS[k.status] || { dot:'gray', text:'gray', label: k.status };
     const typeBadge = MED_TYPE_BADGE[k.medType] || '';
     const expiryStr = k.expiry ? `<div class="kit-meta-field">Expiry <b>${k.expiry}</b></div>` : '';
     const subjStr   = k.subject ? `<div class="kit-meta-field">Subject <b>${k.subject}</b></div>` : '';
     const psuStr    = k.psu ? `<div class="kit-meta-field">PSU <b>${k.psu}</b></div>` : '';
     const nextStr   = k.nextVisitInfo ? `<div class="kit-next">Next: ${k.nextVisitInfo}</div>` : '';
-    return `<div class="kit-card k-${sl.dot}" onclick="showKitDetail(${kits.indexOf(k)})">
-      <div class="kit-card-top">
-        <span class="kit-num">${k.treatNum}</span>
+    const isChecked = state.pharm.selectedKits.has(globalIdx);
+    return `<div class="kit-card k-${sl.dot}${isChecked ? ' selected' : ''}" id="kitcard-${globalIdx}">
+      <div class="kit-card-top" style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" class="kit-checkbox" ${isChecked ? 'checked' : ''}
+          onclick="event.stopPropagation();toggleKitSelect(${globalIdx}, this)">
+        <span class="kit-num" onclick="showKitDetail(${globalIdx})">${k.treatNum}</span>
         ${typeBadge}
-        <span class="kit-ip">${k.kitType ? k.kitType.slice(0,28) : ''}</span>
+        <span class="kit-ip" onclick="showKitDetail(${globalIdx})">${k.kitType ? k.kitType.slice(0,28) : ''}</span>
       </div>
-      <div class="kit-meta">
+      <div class="kit-meta" onclick="showKitDetail(${globalIdx})">
         ${subjStr}${expiryStr}${psuStr}
       </div>
-      <div class="kit-status-row">
+      <div class="kit-status-row" onclick="showKitDetail(${globalIdx})">
         <div class="status-dot d-${sl.dot}"></div>
         <span class="status-text t-${sl.text}">${k.note}</span>
         ${nextStr}
@@ -1718,6 +2023,41 @@ function renderPharmResults() {
   // Show results view
   document.getElementById('pharm-setup-view').style.display = 'none';
   document.getElementById('pharm-results-view').style.display = 'flex';
+}
+
+function toggleKitSelect(idx, checkbox) {
+  const sel = state.pharm.selectedKits;
+  if (checkbox.checked) {
+    sel.add(idx);
+  } else {
+    sel.delete(idx);
+  }
+  const card = document.getElementById('kitcard-' + idx);
+  if (card) card.classList.toggle('selected', checkbox.checked);
+  updateLMRFab();
+}
+
+function selectKitsByStatus(status) {
+  const kits = state.pharm.kits || [];
+  state.pharm.selectedKits = new Set();
+  if (status !== null) {
+    kits.forEach((k, i) => { if (k.status === status) state.pharm.selectedKits.add(i); });
+  }
+  updateLMRFab();
+  renderPharmResults();
+}
+
+function updateLMRFab() {
+  const n = state.pharm.selectedKits.size;
+  const fab = document.getElementById('lmr-fab');
+  const counter = document.getElementById('lmr-count');
+  if (!fab) return;
+  if (n > 0) {
+    fab.classList.add('visible');
+    if (counter) counter.textContent = n;
+  } else {
+    fab.classList.remove('visible');
+  }
 }
 
 function filterKits(filter, el) {
@@ -1751,7 +2091,7 @@ function showKitDetail(idx) {
 }
 
 function resetPharmacy() {
-  state.pharm = { r26:null, r27:null, r28:null, kits:[], currentFilter:'all' };
+  state.pharm = { r26:null, r27:null, r28:null, kits:[], currentFilter:'all', selectedKits: new Set(), session:{ protocol:'', siteNum:'', siteName:'', cra:'', date:'', envioId:'' } };
   pharmWorkbooks.r26 = null; pharmWorkbooks.r28 = null; pharmWorkbooks.r27 = null;
   currentColMap = { r26:{}, r28:{}, r27:{} };
   const mp = document.getElementById('col-mapping-panel'); if(mp) mp.style.display='none';
