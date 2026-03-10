@@ -716,8 +716,9 @@
       <div class="pharm-summary" id="pharm-stats"></div>
 
       <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
-        <button class="btn btn-secondary" style="font-size:11px;padding:4px 12px;height:auto;" onclick="selectKitsByStatus('available')">☑ Seleccionar todos en farmacia</button>
-        <button class="btn btn-secondary" style="font-size:11px;padding:4px 12px;height:auto;" onclick="selectKitsByStatus(null)">✕ Deseleccionar todo</button>
+        <button class="btn btn-secondary" style="font-size:11px;padding:4px 12px;height:auto;" onclick="selectKitsByStatus('available')">☑ Todos en farmacia</button>
+        <button class="btn btn-secondary" style="font-size:11px;padding:4px 12px;height:auto;" onclick="selectKitsByStatus(null)">✕ Deseleccionar</button>
+        <button class="btn btn-primary" style="font-size:11px;padding:4px 12px;height:auto;" onclick="startPharmScan()">📷 Scan to Verify</button>
       </div>
       <div class="filter-bar" id="pharm-filter-bar">
         <div class="filter-pill active" onclick="filterKits('all',this)">All</div>
@@ -728,6 +729,26 @@
 
       <button class="lmr-fab" id="lmr-fab" onclick="exportLMR()">📦 Generar LMR (<span id="lmr-count">0</span> kits seleccionados)</button>
       <div id="col-mapping-panel" style="display:none"></div>
+      <!-- Scan-to-verify overlay -->
+      <div id="pharm-scan-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.92);z-index:200;flex-direction:column;align-items:center;justify-content:center;">
+        <div style="width:100%;max-width:420px;padding:16px;box-sizing:border-box;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <p style="margin:0;font-size:15px;font-weight:700;color:#fff;">📷 Scan to Verify</p>
+            <button onclick="stopPharmScan()" style="background:rgba(255,255,255,0.1);border:none;border-radius:8px;padding:6px 14px;color:#fff;cursor:pointer;font-size:13px;">✕ Cerrar</button>
+          </div>
+          <div style="position:relative;border-radius:12px;overflow:hidden;background:#000;">
+            <video id="pharm-scan-video" autoplay playsinline muted style="width:100%;display:block;max-height:280px;object-fit:cover;"></video>
+            <div style="position:absolute;inset:0;border:2px solid rgba(0,212,255,0.5);border-radius:12px;pointer-events:none;"></div>
+            <div id="pharm-scan-status" style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);padding:5px 14px;border-radius:20px;font-size:12px;color:var(--accent);white-space:nowrap;">Apuntá al código de la caja</div>
+          </div>
+          <div id="pharm-scan-feedback" style="margin-top:12px;min-height:48px;border-radius:10px;padding:10px 14px;font-size:13px;display:none;"></div>
+          <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:12px;color:var(--text-muted);">Escaneados: <b id="pharm-scan-count" style="color:var(--accent);">0</b></span>
+            <span style="font-size:11px;color:var(--text-muted);">Auto-chequea el kit en la lista</span>
+          </div>
+        </div>
+      </div>
+
       <div id="pharm-kit-list"></div>
 
       <button class="btn btn-success" onclick="exportPharmReport()">⬇ Export to Excel</button>
@@ -2035,6 +2056,127 @@ function toggleKitSelect(idx, checkbox) {
   const card = document.getElementById('kitcard-' + idx);
   if (card) card.classList.toggle('selected', checkbox.checked);
   updateLMRFab();
+}
+
+// ── Pharmacy Scan-to-Verify ──────────────────────────────
+let pharmScanStream = null;
+let pharmScanReader = null;
+let pharmScanCount  = 0;
+
+function normSN(s) {
+  // Normalize serial number: strip leading zeros for comparison
+  return String(s || '').trim().replace(/^0+/, '') || '0';
+}
+
+function findKitBySN(sn) {
+  const normalized = normSN(sn);
+  const kits = state.pharm.kits || [];
+  return kits.findIndex(k => normSN(k.treatNum) === normalized);
+}
+
+async function startPharmScan() {
+  const overlay = document.getElementById('pharm-scan-overlay');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  pharmScanCount = 0;
+  document.getElementById('pharm-scan-count').textContent = '0';
+  document.getElementById('pharm-scan-feedback').style.display = 'none';
+
+  const video = document.getElementById('pharm-scan-video');
+  try {
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}}); }
+    catch(e) { stream = await navigator.mediaDevices.getUserMedia({video:true}); }
+    pharmScanStream = stream;
+    video.srcObject = stream;
+    await video.play();
+    // Use ZXing if available (same lib as Kit Scanning)
+    if (window.ZXing) {
+      const hints = new Map();
+      const fmts = [
+        ZXing.BarcodeFormat.DATA_MATRIX,
+        ZXing.BarcodeFormat.QR_CODE,
+        ZXing.BarcodeFormat.CODE_128,
+        ZXing.BarcodeFormat.CODE_39,
+        ZXing.BarcodeFormat.ITF,
+        ZXing.BarcodeFormat.EAN_13,
+      ];
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, fmts);
+      pharmScanReader = new ZXing.BrowserMultiFormatReader(hints);
+      pharmScanReader.decodeFromVideoElement(video, (result, err) => {
+        if (result) handlePharmScanResult(result.getText());
+      });
+    } else {
+      document.getElementById('pharm-scan-status').textContent = 'Scanner no disponible — usá entrada manual';
+    }
+  } catch(err) {
+    document.getElementById('pharm-scan-status').textContent = 'Error de cámara: ' + (err.name === 'NotAllowedError' ? 'Permiso denegado' : err.message);
+  }
+}
+
+let pharmLastScan = '';
+let pharmLastScanTime = 0;
+
+function handlePharmScanResult(text) {
+  // Debounce: ignore same code within 2 seconds
+  const now = Date.now();
+  if (text === pharmLastScan && now - pharmLastScanTime < 2000) return;
+  pharmLastScan = text;
+  pharmLastScanTime = now;
+
+  // Parse GS1 DataMatrix
+  const gs1 = parseGS1(text);
+  const sn = gs1.sn || normSN(text); // fallback: treat whole barcode as SN
+  const feedback = document.getElementById('pharm-scan-feedback');
+
+  const idx = findKitBySN(sn);
+  if (idx >= 0) {
+    // Found — auto-check
+    if (!state.pharm.selectedKits.has(idx)) {
+      state.pharm.selectedKits.add(idx);
+      pharmScanCount++;
+      document.getElementById('pharm-scan-count').textContent = pharmScanCount;
+      updateLMRFab();
+      // Update card in DOM without full re-render
+      const card = document.getElementById('kitcard-' + idx);
+      if (card) {
+        card.classList.add('selected');
+        const cb = card.querySelector('.kit-checkbox');
+        if (cb) cb.checked = true;
+      }
+      const kit = state.pharm.kits[idx];
+      const label = kit.kitType ? kit.kitType.slice(0,30) : '';
+      feedback.style.display = 'block';
+      feedback.style.background = 'rgba(0,229,160,0.12)';
+      feedback.style.border = '1px solid rgba(0,229,160,0.4)';
+      feedback.style.color = 'var(--green)';
+      feedback.innerHTML = '✅ <b>Kit ' + (kit.treatNum||sn) + '</b> verificado<br><span style="font-size:11px;color:var(--text-muted);">' + label + '</span>';
+      if (navigator.vibrate) navigator.vibrate([40]);
+    } else {
+      // Already selected
+      const kit = state.pharm.kits[idx];
+      feedback.style.display = 'block';
+      feedback.style.background = 'rgba(255,211,42,0.1)';
+      feedback.style.border = '1px solid rgba(255,211,42,0.3)';
+      feedback.style.color = 'var(--yellow)';
+      feedback.innerHTML = '⚠️ Kit <b>' + (kit.treatNum||sn) + '</b> ya estaba verificado';
+    }
+  } else {
+    // Not found in IWRS list
+    feedback.style.display = 'block';
+    feedback.style.background = 'rgba(255,71,87,0.1)';
+    feedback.style.border = '1px solid rgba(255,71,87,0.3)';
+    feedback.style.color = 'var(--red)';
+    feedback.innerHTML = '❌ SN <b>' + sn + '</b> no encontrado en el IWRS<br><span style="font-size:11px;color:var(--text-muted);">Verificá el número o subí el archivo correcto</span>';
+    if (navigator.vibrate) navigator.vibrate([80,30,80]);
+  }
+}
+
+function stopPharmScan() {
+  if (pharmScanReader) { try { pharmScanReader.reset(); } catch(e){} pharmScanReader = null; }
+  if (pharmScanStream) { pharmScanStream.getTracks().forEach(t => t.stop()); pharmScanStream = null; }
+  const overlay = document.getElementById('pharm-scan-overlay');
+  if (overlay) overlay.style.display = 'none';
 }
 
 function selectKitsByStatus(status) {
