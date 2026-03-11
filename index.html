@@ -2706,11 +2706,14 @@ function handlePharmScanResult(text) {
       }
       const kit = state.pharm.kits[idx];
       const label = kit.kitType ? kit.kitType.slice(0,30) : '';
+      const statusNote = kit.status !== 'available'
+        ? '<br><span style="font-size:10px;color:var(--yellow);">⚠ Estado: ' + (STATUS_LABELS[kit.status]?.label || kit.status) + '</span>'
+        : '';
       feedback.style.display = 'block';
       feedback.style.background = 'rgba(0,229,160,0.12)';
       feedback.style.border = '1px solid rgba(0,229,160,0.4)';
       feedback.style.color = 'var(--green)';
-      feedback.innerHTML = '✅ <b>Kit ' + (kit.treatNum||sn) + '</b> verificado<br><span style="font-size:11px;color:var(--text-muted);">' + label + '</span>';
+      feedback.innerHTML = '✅ <b>Kit ' + (kit.treatNum||sn) + '</b> seleccionado<br><span style="font-size:11px;color:var(--text-muted);">' + label + '</span>' + statusNote;
       if (navigator.vibrate) navigator.vibrate([40]);
     } else {
       // Already selected
@@ -2738,12 +2741,23 @@ function stopPharmScan() {
   if (pharmScanStream) { pharmScanStream.getTracks().forEach(t => t.stop()); pharmScanStream = null; }
   const overlay = document.getElementById('pharm-scan-overlay');
   if (overlay) overlay.style.display = 'none';
+  // Switch to 'all' filter so user can see ALL selected kits (incl. with_patient)
+  if (state.pharm.currentFilter !== 'all') {
+    state.pharm.currentFilter = 'all';
+    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+    const allPill = document.querySelector('.filter-pill[onclick*="\'all\'"]');
+    if (allPill) allPill.classList.add('active');
+    renderPharmResults();
+  }
 }
 
 function selectKitsByStatus(status) {
   const kits = state.pharm.kits || [];
-  state.pharm.selectedKits = new Set();
-  if (status !== null) {
+  if (status === null) {
+    // Deselect all — clear everything
+    state.pharm.selectedKits = new Set();
+  } else {
+    // Additive: add status-matching kits to current selection
     kits.forEach((k, i) => { if (k.status === status) state.pharm.selectedKits.add(i); });
   }
   updateLMRFab();
