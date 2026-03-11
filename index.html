@@ -2691,6 +2691,33 @@ function handlePharmScanResult(text) {
 
   const idx = findKitBySN(sn);
   if (idx >= 0) {
+    const kit = state.pharm.kits[idx];
+    // Warning for kits with 'with_patient' status — show dispensed info and let CRA decide
+    if (kit.status === 'with_patient') {
+      if (state.pharm.selectedKits.has(idx)) {
+        // Already confirmed previously — skip
+      } else {
+        // Show warning with date context and Yes/No buttons
+        const dispDate = kit.dispensedDate || '?';
+        const dispVisit = kit.dispensedVisit || '?';
+        const medNote = kit.medType === 'vial'
+          ? 'Vial — administrado en centro'
+          : 'Oral — llevado a domicilio';
+        feedback.style.display = 'block';
+        feedback.style.background = 'rgba(255,214,10,0.10)';
+        feedback.style.border = '1px solid rgba(255,214,10,0.4)';
+        feedback.style.color = 'var(--yellow)';
+        feedback.innerHTML =
+          '⚠ <b>Kit ' + (kit.treatNum||sn) + '</b> — estado IWRS: Assigned<br>' +
+          '<span style="font-size:11px;color:var(--text-muted);">Dispensado: ' + dispDate + ' · ' + dispVisit + '<br>' + medNote + '</span><br>' +
+          '<div style="display:flex;gap:8px;margin-top:8px;" id="pharm-confirm-btns" data-idx="' + idx + '">' +
+            '<button onclick="confirmPharmScanKit()" style="flex:1;padding:6px;background:rgba(255,214,10,0.15);border:1px solid rgba(255,214,10,0.5);border-radius:8px;color:var(--yellow);font-size:12px;font-weight:700;cursor:pointer;">&#10003; Incluir</button>' +
+            '<button onclick="document.getElementById(\'pharm-scan-feedback\').style.display=\'none\'" style="flex:1;padding:6px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:12px;cursor:pointer;">&#10005; Omitir</button>' +
+          '</div>';
+        if (navigator.vibrate) navigator.vibrate([60,30,60]);
+        return;
+      }
+    }
     // Found — auto-check
     if (!state.pharm.selectedKits.has(idx)) {
       state.pharm.selectedKits.add(idx);
@@ -2704,7 +2731,6 @@ function handlePharmScanResult(text) {
         const cb = card.querySelector('.kit-checkbox');
         if (cb) cb.checked = true;
       }
-      const kit = state.pharm.kits[idx];
       const label = kit.kitType ? kit.kitType.slice(0,30) : '';
       const statusNote = kit.status !== 'available'
         ? '<br><span style="font-size:10px;color:var(--yellow);">⚠ Estado: ' + (STATUS_LABELS[kit.status]?.label || kit.status) + '</span>'
@@ -2749,6 +2775,33 @@ function stopPharmScan() {
     if (allPill) allPill.classList.add('active');
     renderPharmResults();
   }
+}
+
+function confirmPharmScanKit() {
+  // CRA confirmed: add kit despite 'with_patient' status
+  const btns = document.getElementById('pharm-confirm-btns');
+  const idx = btns ? parseInt(btns.dataset.idx) : -1;
+  const kit = state.pharm.kits[idx];
+  if (!kit) return;
+  state.pharm.selectedKits.add(idx);
+  pharmScanCount++;
+  document.getElementById('pharm-scan-count').textContent = pharmScanCount;
+  updateLMRFab();
+  const card = document.getElementById('kitcard-' + idx);
+  if (card) {
+    card.classList.add('selected');
+    const cb = card.querySelector('.kit-checkbox');
+    if (cb) cb.checked = true;
+  }
+  const feedback = document.getElementById('pharm-scan-feedback');
+  if (feedback) {
+    feedback.style.background = 'rgba(0,196,180,0.10)';
+    feedback.style.border = '1px solid rgba(0,196,180,0.3)';
+    feedback.style.color = 'var(--accent)';
+    feedback.innerHTML = '✅ <b>Kit ' + kit.treatNum + '</b> incluido manualmente<br>' +
+      '<span style="font-size:10px;color:var(--text-muted);">Estado IWRS: Assigned</span>';
+  }
+  if (navigator.vibrate) navigator.vibrate([40]);
 }
 
 function selectKitsByStatus(status) {
