@@ -55,6 +55,44 @@ html, body {
   overflow: hidden;
 }
 
+/* ── DESKTOP LAYOUT ── */
+@media (min-width: 600px) {
+  html, body {
+    overflow: auto;
+    height: auto;
+    min-height: 100vh;
+    background: #06070D;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(0,196,180,0.04) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 20%, rgba(10,132,255,0.04) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .app {
+    max-width: 480px;
+    min-height: 100vh;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    box-shadow: 0 0 80px rgba(0,0,0,0.7);
+    position: relative;
+    z-index: 1;
+  }
+  .screen.active {
+    min-height: 100vh;
+  }
+  .content {
+    overflow-y: auto;
+  }
+}
+
 /* ── LAYOUT ── */
 .app { display: flex; flex-direction: column; height: 100vh; max-width: 430px; margin: 0 auto; position: relative; overflow: hidden; }
 .screen { display: none; flex-direction: column; height: 100%; overflow: hidden; }
@@ -1028,7 +1066,7 @@ html, body {
     <p class="screen-title">Pharmacy<br>Inventory</p>
     <p class="screen-subtitle">Upload IWRS reports to classify which kits are in the pharmacy</p>
 
-    <!-- Session metadata -->
+    <!-- Session metadata (SINGLE block — duplicate removed) -->
     <div style="background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.2);border-radius:12px;padding:14px 16px;margin-bottom:18px;">
       <p style="font-size:11px;font-weight:600;color:var(--accent);letter-spacing:.05em;margin:0 0 10px;">SESSION INFO</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -1051,28 +1089,6 @@ html, body {
       </div>
     </div>
 
-        <!-- Session metadata -->
-    <div style="background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.2);border-radius:12px;padding:14px 16px;margin-bottom:18px;">
-      <p style="font-size:11px;font-weight:600;color:var(--accent);letter-spacing:.05em;margin:0 0 10px;">SESSION INFO</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div>
-          <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">CRA Name</label>
-          <input id="pharm-cra" type="text" placeholder="Nicolas Pourtale" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);box-sizing:border-box;" oninput="updatePharmSession()">
-        </div>
-        <div>
-          <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">Protocol / Study ID</label>
-          <input id="pharm-protocol" type="text" placeholder="EFC17919" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);text-transform:uppercase;box-sizing:border-box;" oninput="updatePharmSession()">
-        </div>
-        <div>
-          <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">Site Number</label>
-          <input id="pharm-sitenum" type="text" placeholder="0320001" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);box-sizing:border-box;" oninput="updatePharmSession()">
-        </div>
-        <div>
-          <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">Site Name</label>
-          <input id="pharm-sitename" type="text" placeholder="Focus CECIC" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);box-sizing:border-box;" oninput="updatePharmSession()">
-        </div>
-      </div>
-    </div>
     <div class="alert-strip">
       <span>ℹ</span>
       <div>
@@ -1138,6 +1154,7 @@ html, body {
         <div class="filter-pill p-green"  onclick="filterKits('available',this)">🟢 In Pharmacy</div>
         <div class="filter-pill p-yellow" onclick="filterKits('returned',this)">🟡 Returned</div>
         <div class="filter-pill p-red"    onclick="filterKits('patient',this)">🔴 With Patient</div>
+        <div class="filter-pill p-red"    onclick="filterKits('expired',this)">⚠ Expired</div>
       </div>
 
       <button class="lmr-fab" id="lmr-fab" onclick="exportLMR()">📦 Generar LMR (<span id="lmr-count">0</span> kits seleccionados)</button>
@@ -1204,14 +1221,12 @@ html, body {
 //  HOME SCREEN — CRA name + session stats
 // ════════════════════════════════════════════════════════
 function initHome() {
-  // Date
   const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const now = new Date();
   const dateEl = document.getElementById('home-date');
   if (dateEl) dateEl.textContent = days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()];
 
-  // CRA name
   const name = localStorage.getItem('medscan_cra_name') || '';
   const titleEl = document.getElementById('home-title');
   const avatarEl = document.getElementById('avatar-btn');
@@ -1225,7 +1240,6 @@ function initHome() {
         : parts[0].slice(0,2).toUpperCase();
       avatarEl.textContent = initials;
     }
-    // Pre-fill pharm-cra if empty
     const pharmCra = document.getElementById('pharm-cra');
     if (pharmCra && !pharmCra.value) pharmCra.value = name;
   } else {
@@ -1233,7 +1247,6 @@ function initHome() {
     if (avatarEl) avatarEl.textContent = '?';
   }
 
-  // Session stats from sessionStorage
   const sessData = sessionStorage.getItem('medscan_session_stats');
   if (sessData) {
     try {
@@ -1245,7 +1258,6 @@ function initHome() {
         document.getElementById('stat-sites').textContent = s.sites || 0;
         document.getElementById('stat-kits').textContent = s.kits || 0;
       }
-      // Recent activity
       if (s.lastProtocol) {
         const recentSection = document.getElementById('home-recent-section');
         const recentTitle   = document.getElementById('recent-title');
@@ -1280,7 +1292,6 @@ function saveCRAName() {
   localStorage.setItem('medscan_cra_name', name);
   closeCRAModal();
   initHome();
-  // Also update pharm-cra field
   const pharmCra = document.getElementById('pharm-cra');
   if (pharmCra && !pharmCra.value) pharmCra.value = name;
   toast('Name saved');
@@ -1290,7 +1301,6 @@ function updateSessionStats(protocol, siteNum, siteName, kitsCount) {
   try {
     let s = {};
     try { s = JSON.parse(sessionStorage.getItem('medscan_session_stats') || '{}'); } catch(e) {}
-    // Track unique protocols and sites
     const protocols = new Set(JSON.parse(s._protocolSet || '[]'));
     const sites = new Set(JSON.parse(s._siteSet || '[]'));
     if (protocol) protocols.add(protocol);
@@ -1314,7 +1324,6 @@ function updateSessionStats(protocol, siteNum, siteName, kitsCount) {
 //  GLOBAL STATE
 // ════════════════════════════════════════════════════════
 const state = {
-  // Kit scanning
   session: null,
   mode: 'reconcile',
   scanned: [],
@@ -1327,7 +1336,6 @@ const state = {
   scanning: false,
   prevScreen: 'screen-home',
 
-  // Pharmacy inventory
   pharm: {
     r26: null, r27: null, r28: null,
     kits: [],
@@ -1420,7 +1428,6 @@ async function handleIWRSUpload(event) {
     }
     state.iwrs.clear(); state.iwrsRaw = rows;
 
-    // Auto-detect SN and LOT columns — supports standard names AND raw IWRS exports
     const SN_ALIASES  = ['SN','sn','Serial Number','SerialNumber','serial_number',
                          'Kit Number(s) Assigned','Kit Number','KitNumber','kit_number'];
     const LOT_ALIASES = ['LOT','lot','Lot Number','LotNumber','lot_number',
@@ -1761,18 +1768,13 @@ function exportExcel() {
 //  PHARMACY INVENTORY
 // ════════════════════════════════════════════════════════
 
-// VISIT_ORDER is built dynamically from R28 data in runPharmacyAnalysis()
-// Fallback for Kit Scanning screen (pre-analysis context)
 let VISIT_ORDER = {};
 
-// ── EXPANDED ALIAS DICTIONARIES ──────────────────────────
 const COL_ALIASES = {
-  // R28
   kitNumber:   ['Kit Number(s) Assigned','Kit Number','Kit Number(s)','Kit No','Kit ID','Treatment Number','IRT Kit','Dispensed Kit','Kit'],
   subject:     ['Subject Number','Subject ID','Patient ID','Patient Number','Participant ID','Part. No','Subject No','Randomization Number'],
   visitName:   ['Visit Name','Visit','Study Visit','Visit Description','Visit Label','Event Name','Timepoint'],
   visitDate:   ['Visit Date','Date of Visit','Actual Date','Completed Date','Date Completed','Visit Completion Date','Date'],
-  // R26
   treatNumber:    ['Kit Number','Treatment Number','Kit No','Kit ID','IRT Kit Number','Dispensing Number','Treatment Kit','Kit Number(s) Assigned'],
   packaging:      ['Packaging Number','Package Number','Pkg No','Batch Number'],
   lot:            ['Lot Number','Lot No','LotNumber','LOT','Lot Number(s) Assigned','Lot Number(s)','Batch Number','Batch No'],
@@ -1781,24 +1783,20 @@ const COL_ALIASES = {
   kitType:        ['Blinded Kit Name','Kit Type','Kit Description','Treatment Type','Treatment Name','IP Type','Drug Type','Drug Name','Medication Type'],
   kitStatus:      ['Current Kit Status','Kit Status','IRT Status','Kit Current Status','Dispensed Status'],
   visitDispensed: ['Visit Dispensed','Dispensed Visit','Visit Name','Visit'],
-  // R27
   nextVisit:   ['Next Expected Visit','Next Visit','Upcoming Visit','Next Planned Visit'],
   nextDate:    ['Next Expected Visit Date','Next Visit Date','Upcoming Visit Date'],
 };
 
-// ── WORKBOOK STORE (for multi-sheet support) ──────────────
 const pharmWorkbooks = { r26: null, r28: null, r27: null };
 
 function findColAdvanced(rows, fieldKey) {
   if (!rows || rows.length === 0) return null;
   const headers = Object.keys(rows[0]);
   const aliases = COL_ALIASES[fieldKey] || [];
-  // 1. Exact match (case-insensitive)
   for (const alias of aliases) {
     const found = headers.find(h => h.toLowerCase() === alias.toLowerCase());
     if (found) return found;
   }
-  // 2. Substring match
   for (const alias of aliases) {
     const found = headers.find(h => h.toLowerCase().includes(alias.toLowerCase()));
     if (found) return found;
@@ -1816,7 +1814,6 @@ function detectDepotReturnCol(row) {
   return Object.keys(row).find(k => depotKws.some(kw => k.toLowerCase().includes(kw)));
 }
 
-// ── FILE UPLOAD & SHEET HANDLING ─────────────────────────
 async function handlePharmUpload(report, event) {
   const file = event.target.files[0]; if (!file) return;
   const reportName = report === 'r26' ? 'Study Supply Summary' : report === 'r28' ? 'Subject Visit Summary' : 'Site Supply Summary';
@@ -1832,7 +1829,6 @@ async function handlePharmUpload(report, event) {
     } else {
       wb = XLSX.read(data, {type:'array'});
       pharmWorkbooks[report] = wb;
-      // Populate sheet selector if multiple sheets
       const sheetSel = document.getElementById(`${report}-sheet-selector`);
       const sheetSelect = document.getElementById(`${report}-sheet-select`);
       if (wb.SheetNames.length > 1) {
@@ -1876,7 +1872,6 @@ function showHeaderPreview(report, rows) {
   el.innerHTML = `<b>${headers.length} columns:</b> ${preview}`;
 }
 
-// ── COLUMN MAPPING PANEL ─────────────────────────────────
 function buildMappingPanel(r26map, r28map, r27map) {
   const r28Headers = r28map.__allHeaders || [];
   const r26Headers = r26map.__allHeaders || [];
@@ -1948,7 +1943,6 @@ function toggleMappingPanel() {
   body.style.display = body.style.display === 'none' ? 'block' : 'none';
 }
 
-// Store current column map for overrides
 let currentColMap = { r26: {}, r28: {}, r27: {} };
 
 function overrideMapping(report, field, value) {
@@ -1959,7 +1953,6 @@ function applyColumnOverrides() {
   runPharmacyAnalysis(true);
 }
 
-// ── ANALYSIS ─────────────────────────────────────────────
 function parseDate(val) {
   if (!val || val === 'n/a' || val === '') return null;
   if (val instanceof Date) return val;
@@ -1978,6 +1971,23 @@ function fmtDate(d) {
   return d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
 }
 
+// ── Helper: check if a kit expiry string is in the past ───
+function isKitExpiredByDate(expiryStr) {
+  if (!expiryStr || expiryStr === '—' || expiryStr === 'n/a') return false;
+  // Try parseDate first (handles "31 Oct 2026" format from R26)
+  const d = parseDate(expiryStr);
+  if (d) return d < new Date();
+  // Fallback: MM-YYYY / YYYY-MM format
+  try {
+    const parts = expiryStr.split(/[-\/]/);
+    let month, year;
+    if (parts[0].length === 4) { year = parseInt(parts[0]); month = parseInt(parts[1]); }
+    else { month = parseInt(parts[0]); year = parseInt(parts[1]); }
+    if (isNaN(month) || isNaN(year)) return false;
+    return new Date(year, month, 0) < new Date();
+  } catch { return false; }
+}
+
 function runPharmacyAnalysis(useOverrides = false) {
   updatePharmSession();
   if (!state.pharm.r26 || !state.pharm.r28) { toast('Study Supply Summary and Subject Visit Summary required'); return; }
@@ -1989,7 +1999,6 @@ function runPharmacyAnalysis(useOverrides = false) {
       const r28 = state.pharm.r28;
       const r27 = state.pharm.r27 || [];
 
-      // ── Auto-detect columns ───────────────────────────
       const getCol = (rows, fieldKey, reportKey) => {
         if (useOverrides && currentColMap[reportKey][fieldKey] !== undefined) {
           return currentColMap[reportKey][fieldKey];
@@ -1997,7 +2006,6 @@ function runPharmacyAnalysis(useOverrides = false) {
         return findColAdvanced(rows, fieldKey);
       };
 
-      // Build maps with all headers for the panel
       const r28Headers = Object.keys(r28[0] || {});
       const r26Headers = Object.keys(r26[0] || {});
       const r27Headers = Object.keys(r27[0] || {});
@@ -2028,7 +2036,6 @@ function runPharmacyAnalysis(useOverrides = false) {
         nextDate:    getCol(r27, 'nextDate', 'r27'),
       };
 
-      // Store for overrides
       if (!useOverrides) {
         currentColMap.r28 = { ...r28map };
         currentColMap.r26 = { ...r26map };
@@ -2038,7 +2045,6 @@ function runPharmacyAnalysis(useOverrides = false) {
         delete currentColMap.r27.__allHeaders;
       }
 
-      // Toast warnings for missing required columns
       const reqR28 = { 'Kit Number (R28)': r28map.kitNumber, 'Subject (R28)': r28map.subject, 'Visit Name': r28map.visitName, 'Visit Date': r28map.visitDate };
       const reqR26 = { 'Kit Number (R26)': r26map.treatNumber };
       if (!r26map.kitStatus && !r26Headers.some(h => ['acknowledgement','receipt date','site ack','site receipt'].some(kw => h.toLowerCase().includes(kw)))) {
@@ -2057,8 +2063,6 @@ function runPharmacyAnalysis(useOverrides = false) {
         const visit = r28map.visitName ? row[r28map.visitName] : null;
         const date  = r28map.visitDate ? parseDate(row[r28map.visitDate]) : null;
         const kitRaw = r28map.kitNumber ? String(row[r28map.kitNumber] || '') : '';
-
-        // Handle multi-kit cells (comma or semicolon separated)
         const kits = kitRaw.split(/[,;]/).map(k => k.trim()).filter(k => k && k !== 'n/a');
         const vo = visit && VISIT_ORDER[visit] !== undefined ? VISIT_ORDER[visit] : -1;
 
@@ -2068,7 +2072,6 @@ function runPharmacyAnalysis(useOverrides = false) {
           }
         }
         kits.forEach(kit => {
-          // Keep the latest dispensing event (overwrite only if newer date)
           if (!kitDispensed[kit] || (date && kitDispensed[kit].date && date > kitDispensed[kit].date)) {
             kitDispensed[kit] = { subject: subj, visit, visitOrder: vo, date };
           }
@@ -2095,25 +2098,6 @@ function runPharmacyAnalysis(useOverrides = false) {
       }
 
       // ── Parse R27 ─────────────────────────────────────
-            // ── Build dynamic VISIT_ORDER from R28 visit dates ──────────
-      {
-        const visitDateAccum = {};
-        r28.forEach(row => {
-          const visit = r28map.visitName ? row[r28map.visitName] : null;
-          const date  = r28map.visitDate ? parseDate(row[r28map.visitDate]) : null;
-          if (visit && date) {
-            if (!visitDateAccum[visit]) visitDateAccum[visit] = [];
-            visitDateAccum[visit].push(date.getTime());
-          }
-        });
-        const visitEntries = Object.entries(visitDateAccum)
-          .map(([v, ts]) => [v, ts.reduce((a,b)=>a+b,0)/ts.length])
-          .sort((a,b) => a[1]-b[1]);
-        VISIT_ORDER = {};
-        visitEntries.forEach(([v], i) => { VISIT_ORDER[v] = i; });
-        console.log('[MedScan] Dynamic VISIT_ORDER:', Object.keys(VISIT_ORDER).length, 'visits detected');
-      }
-
       const subjNextVisit = {};
       if (r27.length > 0 && r27map.subject) {
         r27.forEach(row => {
@@ -2127,10 +2111,8 @@ function runPharmacyAnalysis(useOverrides = false) {
 
       // ── Parse R26 & classify ──────────────────────────
       const classifiedKits = [];
-      // Detect whether this R26 uses direct status column (Endpoint IWRS style)
       const useDirectStatus = !!r26map.kitStatus;
 
-      // ── Medication type detection ─────────────────────
       function detectMedType(kitTypeName) {
         const t = (kitTypeName || '').toLowerCase();
         const tabletKws = ['tablet','capsule','oral','pill','teriflunomide'];
@@ -2151,15 +2133,13 @@ function runPharmacyAnalysis(useOverrides = false) {
         const directStatus = r26map.kitStatus ? String(row[r26map.kitStatus] || '').trim().toLowerCase() : '';
         const visitDisp = r26map.visitDispensed ? String(row[r26map.visitDispensed] || '').trim() : '';
         const medType   = detectMedType(kitType);
-        // Declare dispensed at callback scope so it's accessible at push time
         const dispensed = subj26 && String(subj26).trim() !== '' && String(subj26).trim() !== 'n/a';
 
-        if (!treatNum) return; // skip empty rows
+        if (!treatNum) return;
 
         let status, color, note, nextInfo = '';
 
         if (useDirectStatus) {
-          // ── Endpoint IWRS style: classify via Current Kit Status ──
           if (directStatus === 'available') {
             status = 'available'; color = 'green';
             note = medType === 'vial'
@@ -2200,11 +2180,8 @@ function runPharmacyAnalysis(useOverrides = false) {
             note = `Status: ${directStatus || 'unknown'} — verify manually`;
           }
         } else {
-          // ── Legacy style: classify via site ack / depot return dates ──
-          // dispensed already declared at callback scope above
           const ackCol  = detectSiteAckCol(row);
           const received = ackCol && row[ackCol] && String(row[ackCol]).trim() !== '' && String(row[ackCol]).trim() !== 'n/a';
-
           const depotCol = detectDepotReturnCol(row);
           const hasLeft  = depotCol && row[depotCol] && String(row[depotCol]).trim() !== '' && String(row[depotCol]).trim() !== 'n/a';
 
@@ -2262,6 +2239,20 @@ function runPharmacyAnalysis(useOverrides = false) {
           }
         }
 
+        // ── FIX: Expiry check applied to ALL kits regardless of IWRS status ──
+        if (isKitExpiredByDate(expiry)) {
+          if (status === 'available') {
+            // Available but expired → must be returned
+            status = 'available_expired';
+            color  = 'red';
+            note   = `⚠ VENCIDO (${expiry}) — kit debe ser retornado al depósito`;
+          } else if (status === 'with_patient' || status === 'returned' || status === 'dispensed_unknown') {
+            // Already out of pharmacy — flag expiry on note
+            note = `⚠ VENCIDO (${expiry}) · ` + note;
+          }
+          // left_site / not_received don't need extra action
+        }
+
         classifiedKits.push({
           treatNum, lot, pkg, psu, expiry, kitType, medType,
           subject: dispensed ? String(subj26) : null,
@@ -2275,13 +2266,10 @@ function runPharmacyAnalysis(useOverrides = false) {
 
       state.pharm.kits = classifiedKits;
       hideLoading();
-      // Update home session stats
       const sess2 = state.pharm.session;
       updateSessionStats(sess2.protocol, sess2.siteNum, sess2.siteName, classifiedKits.length);
 
-      // Build column mapping panel
       buildMappingPanel(r26map, r28map, r27map);
-
       renderPharmResults();
 
     } catch(err) {
@@ -2298,6 +2286,7 @@ function runPharmacyAnalysis(useOverrides = false) {
 
 const STATUS_LABELS = {
   available:         { dot: 'green',  text: 'green',  label: '🟢 In Pharmacy' },
+  available_expired: { dot: 'red',    text: 'red',    label: '🔴 Expired — Return' },
   with_patient:      { dot: 'red',    text: 'red',    label: '🔴 With Patient' },
   returned:          { dot: 'yellow', text: 'yellow', label: '🟡 Likely Returned' },
   dispensed_unknown: { dot: 'yellow', text: 'yellow', label: '🟡 Verify Manually' },
@@ -2320,8 +2309,8 @@ function updatePharmSession() {
 }
 
 function fmtDateLMR(d) {
-  if (!d) { const n=new Date(); d=n; }
-  const months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  if (!d) { d = new Date(); }
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   return String(d.getDate()).padStart(2,'0') + months[d.getMonth()] + d.getFullYear();
 }
 
@@ -2335,119 +2324,13 @@ function exportLMR() {
   const s = state.pharm.session;
   const today = new Date();
   const dateStr = fmtDateLMR(today);
-  const excelDate = today.toLocaleDateString('es-AR');
-
-  // Build envioId suggestion
   const protocol = s.protocol || 'XXXXXXX';
   const siteNum  = s.siteNum  || 'XXXXXXX';
   const suggestedId = `IMP-${protocol}-${siteNum}-${dateStr}`;
 
-  // Ask for envioId (C3 — always manual per user)
-  const envioId = prompt(
-    `Número de envío (C3):
-
-Sugerido: ${suggestedId}
-
-Editá si es necesario:`,
-    suggestedId
-  );
-  if (envioId === null) return; // user cancelled
-
-  try {
-    const wb = XLSX.utils.book_new();
-    const ws = {};
-
-    const set = (col, row, val) => {
-      const addr = XLSX.utils.encode_cell({c: col-1, r: row-1});
-      ws[addr] = { v: val, t: typeof val === 'number' ? 'n' : 's' };
-    };
-
-    // Header labels (col A=1)
-    set(2,1,'MONITOR:');         set(3,1, s.cra || '—');
-    set(4,1,'Código del estudio:'); set(5,1, s.protocol || '—');
-    set(2,2,'Identificación de retiro (IMP-STUDY-SITE-DATE):');
-    set(3,3, envioId);
-    set(4,3,'Fecha:');           set(5,3, excelDate);
-    set(2,4,'Ej: IMP-EFC17504-0320001-10MAR2026');
-    set(2,5,'CENTRO:');          set(3,5, s.siteName || '—');
-    set(2,6,'Persona de contacto:'); set(3,6,'');
-    set(5,6,'Caja N°:');         set(6,6, 1);
-    set(2,7,'Teléfono:');        set(3,7,'');
-    set(5,7,'Total de kits:');   set(6,7, kits.length);
-    set(2,8,'E-mail:');          set(3,8,'');
-    set(5,8,'Total de cajas:');  set(6,8, 1);
-
-    // Column headers row 9
-    set(1,9,'#');
-    set(2,9,'Material descripción');
-    set(3,9,'N° de kit / Tratamiento');
-    set(4,9,'Cantidad');
-    set(5,9,'Lote N°');
-    set(6,9,'Vencimiento');
-
-    // Kit rows start at row 12 (matching Sanofi LMR template)
-    kits.forEach((k, i) => {
-      const row = 12 + i;
-      set(1, row, i + 1);
-      set(2, row, k.kitType || '—');
-      set(3, row, k.treatNum || '');
-      set(4, row, 1);
-      set(5, row, k.psu || '');  // lot/psu
-      set(6, row, k.expiry || '');
-    });
-
-    // Set sheet range
-    const range = {s:{c:0,r:0}, e:{c:5, r:11+kits.length}};
-    ws['!ref'] = XLSX.utils.encode_range(range);
-    ws['!cols'] = [{wch:4},{wch:30},{wch:18},{wch:10},{wch:14},{wch:14}];
-
-    XLSX.utils.book_append_sheet(wb, ws, 'completar Hoja1');
-
-    const filename = `LMR_${siteNum}_${s.cra.split(' ').pop() || 'CRA'}_${dateStr}.xlsx`;
-    try {
-      XLSX.writeFile(wb, filename);
-    } catch(e) {
-      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const blob = new Blob([wbout], { type: 'application/octet-stream' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = filename;
-      document.body.appendChild(a); a.click();
-      setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
-    }
-    toast(`LMR exportado: ${kits.length} kits · ${filename}`);
-  } catch(err) {
-    console.error('LMR export error:', err);
-    toast('Error al exportar LMR: ' + err.message, 4000);
-  }
-}
-
-function updatePharmSession() {
-  const s = state.pharm.session;
-  s.cra      = document.getElementById('pharm-cra')?.value.trim() || '';
-  s.protocol = document.getElementById('pharm-protocol')?.value.trim().toUpperCase() || '';
-  s.siteNum  = document.getElementById('pharm-sitenum')?.value.trim() || '';
-  s.siteName = document.getElementById('pharm-sitename')?.value.trim() || '';
-}
-
-function fmtDateLMR(d) {
-  if (!d) { d = new Date(); }
-  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  return String(d.getDate()).padStart(2,'0') + months[d.getMonth()] + d.getFullYear();
-}
-
-function exportLMR() {
-  const kits = (state.pharm.kits || []).filter(k => k.status === 'available');
-  if (!kits.length) { toast('No hay kits disponibles para retornar', 3000); return; }
-  const s = state.pharm.session;
-  const today = new Date();
-  const dateStr = fmtDateLMR(today);
-  const excelDate = today.toLocaleDateString('es-AR');
-  const protocol = s.protocol || 'XXXXXXX';
-  const siteNum  = s.siteNum  || 'XXXXXXX';
-  const suggestedId = 'IMP-' + protocol + '-' + siteNum + '-' + dateStr;
-  // Show inline modal instead of prompt() (blocked in PWA/iOS standalone mode)
-  showEnvioModal(suggestedId, function(envioId) { _doExportLMR(kits, s, envioId, dateStr, excelDate, siteNum); });
+  showEnvioModal(suggestedId, function(envioId) {
+    _doExportLMR(kits, s, envioId, dateStr, today.toLocaleDateString('es-AR'), siteNum);
+  });
 }
 
 function showEnvioModal(suggested, onConfirm) {
@@ -2505,7 +2388,6 @@ function _doExportLMR(kits, s, envioId, dateStr, excelDate, siteNum) {
     set(4,9,'Cantidad');
     set(5,9,'Lote N°');
     set(6,9,'Vencimiento');
-    // Kit data starts at row 12 (matching Sanofi LMR template structure)
     kits.forEach((k, i) => {
       const row = 12 + i;
       set(1, row, i + 1);
@@ -2546,16 +2428,17 @@ function renderPharmResults() {
   const kits = state.pharm.kits;
   const filter = state.pharm.currentFilter || 'all';
 
-  // ── Stats bar ──
-  const counts = { available:0, with_patient:0, returned:0, dispensed_unknown:0, left_site:0, not_received:0 };
+  const counts = { available:0, available_expired:0, with_patient:0, returned:0, dispensed_unknown:0, left_site:0, not_received:0 };
   kits.forEach(k => { if (counts[k.status] !== undefined) counts[k.status]++; });
+
   const statsEl = document.getElementById('pharm-stats');
   statsEl.className = 'pharm-summary';
   statsEl.innerHTML =
     '<div class="pharm-stat ps-green"><div class="pharm-stat-n">' + counts.available + '</div><div class="pharm-stat-l">In Pharm.</div></div>' +
-    '<div class="pharm-stat ps-red"><div class="pharm-stat-n">' + counts.with_patient + '</div><div class="pharm-stat-l">Patient</div></div>' +
+    '<div class="pharm-stat ps-red"><div class="pharm-stat-n">' + (counts.with_patient + counts.available_expired) + '</div><div class="pharm-stat-l">Attn Req.</div></div>' +
     '<div class="pharm-stat ps-yellow"><div class="pharm-stat-n">' + (counts.returned + counts.dispensed_unknown) + '</div><div class="pharm-stat-l">Returned</div></div>' +
     '<div class="pharm-stat ps-blue"><div class="pharm-stat-n">' + counts.left_site + '</div><div class="pharm-stat-l">Left Site</div></div>';
+
   const sess = state.pharm.session;
   const sessionLabel = [sess.protocol, sess.siteNum, sess.siteName].filter(Boolean).join(' · ');
   document.getElementById('pharm-subtitle').textContent = sessionLabel
@@ -2563,13 +2446,13 @@ function renderPharmResults() {
     : `${kits.length} kits · ${counts.available} to verify in pharmacy`;
 
   // ── Filter ──
-  const visible = filter === 'all' ? kits
+  const visible = filter === 'all'      ? kits
     : filter === 'available' ? kits.filter(k => k.status === 'available')
     : filter === 'returned'  ? kits.filter(k => k.status === 'returned' || k.status === 'dispensed_unknown')
     : filter === 'patient'   ? kits.filter(k => k.status === 'with_patient')
+    : filter === 'expired'   ? kits.filter(k => k.status === 'available_expired')
     : kits;
 
-  // ── Render cards ──
   const list = document.getElementById('pharm-kit-list');
   if (visible.length === 0) {
     list.innerHTML = '<div class="empty-state" style="padding:40px 0;"><div class="empty-icon">📦</div><p>No kits in this category.</p></div>';
@@ -2604,18 +2487,13 @@ function renderPharmResults() {
     </div>`;
   }).join('');
 
-  // Show results view
   document.getElementById('pharm-setup-view').style.display = 'none';
   document.getElementById('pharm-results-view').style.display = 'flex';
 }
 
 function toggleKitSelect(idx, checkbox) {
   const sel = state.pharm.selectedKits;
-  if (checkbox.checked) {
-    sel.add(idx);
-  } else {
-    sel.delete(idx);
-  }
+  if (checkbox.checked) { sel.add(idx); } else { sel.delete(idx); }
   const card = document.getElementById('kitcard-' + idx);
   if (card) card.classList.toggle('selected', checkbox.checked);
   updateLMRFab();
@@ -2628,7 +2506,6 @@ let pharmScanCount  = 0;
 let pharmScanActive = false;
 
 function normSN(s) {
-  // Normalize serial number: strip leading zeros for comparison
   return String(s || '').trim().replace(/^0+/, '') || '0';
 }
 
@@ -2678,31 +2555,23 @@ let pharmLastScanTime = 0;
 
 function handlePharmScanResult(text) {
   if (!pharmScanActive) return;
-  // Debounce: ignore same code within 2 seconds
   const now = Date.now();
   if (text === pharmLastScan && now - pharmLastScanTime < 2000) return;
   pharmLastScan = text;
   pharmLastScanTime = now;
 
-  // Parse GS1 DataMatrix
   const gs1 = parseGS1(text);
-  const sn = gs1.sn || normSN(text); // fallback: treat whole barcode as SN
+  const sn = gs1.sn || normSN(text);
   const feedback = document.getElementById('pharm-scan-feedback');
 
   const idx = findKitBySN(sn);
   if (idx >= 0) {
     const kit = state.pharm.kits[idx];
-    // Warning for kits with 'with_patient' status — show dispensed info and let CRA decide
     if (kit.status === 'with_patient') {
-      if (state.pharm.selectedKits.has(idx)) {
-        // Already confirmed previously — skip
-      } else {
-        // Show warning with date context and Yes/No buttons
+      if (!state.pharm.selectedKits.has(idx)) {
         const dispDate = kit.dispensedDate || '?';
         const dispVisit = kit.dispensedVisit || '?';
-        const medNote = kit.medType === 'vial'
-          ? 'Vial — administrado en centro'
-          : 'Oral — llevado a domicilio';
+        const medNote = kit.medType === 'vial' ? 'Vial — administrado en centro' : 'Oral — llevado a domicilio';
         feedback.style.display = 'block';
         feedback.style.background = 'rgba(255,214,10,0.10)';
         feedback.style.border = '1px solid rgba(255,214,10,0.4)';
@@ -2718,13 +2587,11 @@ function handlePharmScanResult(text) {
         return;
       }
     }
-    // Found — auto-check
     if (!state.pharm.selectedKits.has(idx)) {
       state.pharm.selectedKits.add(idx);
       pharmScanCount++;
       document.getElementById('pharm-scan-count').textContent = pharmScanCount;
       updateLMRFab();
-      // Update card in DOM without full re-render
       const card = document.getElementById('kitcard-' + idx);
       if (card) {
         card.classList.add('selected');
@@ -2742,8 +2609,6 @@ function handlePharmScanResult(text) {
       feedback.innerHTML = '✅ <b>Kit ' + (kit.treatNum||sn) + '</b> seleccionado<br><span style="font-size:11px;color:var(--text-muted);">' + label + '</span>' + statusNote;
       if (navigator.vibrate) navigator.vibrate([40]);
     } else {
-      // Already selected
-      const kit = state.pharm.kits[idx];
       feedback.style.display = 'block';
       feedback.style.background = 'rgba(255,211,42,0.1)';
       feedback.style.border = '1px solid rgba(255,211,42,0.3)';
@@ -2751,7 +2616,6 @@ function handlePharmScanResult(text) {
       feedback.innerHTML = '⚠️ Kit <b>' + (kit.treatNum||sn) + '</b> ya estaba verificado';
     }
   } else {
-    // Not found in IWRS list
     feedback.style.display = 'block';
     feedback.style.background = 'rgba(255,71,87,0.1)';
     feedback.style.border = '1px solid rgba(255,71,87,0.3)';
@@ -2767,7 +2631,6 @@ function stopPharmScan() {
   if (pharmScanStream) { pharmScanStream.getTracks().forEach(t => t.stop()); pharmScanStream = null; }
   const overlay = document.getElementById('pharm-scan-overlay');
   if (overlay) overlay.style.display = 'none';
-  // Switch to 'all' filter so user can see ALL selected kits (incl. with_patient)
   if (state.pharm.currentFilter !== 'all') {
     state.pharm.currentFilter = 'all';
     document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
@@ -2778,7 +2641,6 @@ function stopPharmScan() {
 }
 
 function confirmPharmScanKit() {
-  // CRA confirmed: add kit despite 'with_patient' status
   const btns = document.getElementById('pharm-confirm-btns');
   const idx = btns ? parseInt(btns.dataset.idx) : -1;
   const kit = state.pharm.kits[idx];
@@ -2807,10 +2669,8 @@ function confirmPharmScanKit() {
 function selectKitsByStatus(status) {
   const kits = state.pharm.kits || [];
   if (status === null) {
-    // Deselect all — clear everything
     state.pharm.selectedKits = new Set();
   } else {
-    // Additive: add status-matching kits to current selection
     kits.forEach((k, i) => { if (k.status === status) state.pharm.selectedKits.add(i); });
   }
   updateLMRFab();
@@ -2891,8 +2751,6 @@ function exportPharmReport() {
 
   try {
     const wb = XLSX.utils.book_new();
-
-    // Tab 1: Full list
     const headers = ['Kit Number','Kit Type','Med Type','Subject','Expiry','PSU','Packaging No.','Status','Note','Next Visit Info'];
     const rows = kits.map(k => [
       k.treatNum, k.kitType || '',
@@ -2903,34 +2761,35 @@ function exportPharmReport() {
     ]);
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headers, ...rows]), 'All Kits');
 
-    // Tab 2: In Pharmacy
     const avail = kits.filter(k => k.status === 'available');
-    const availRows = avail.map(k => [k.treatNum, k.kitType || '', k.expiry || '', k.psu || '', '', '', '']);
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
       ['Kit Number','Kit Type','Expiry','PSU','Physically Verified (Y/N)','Monitor Initials','Date'],
-      ...availRows
+      ...avail.map(k => [k.treatNum, k.kitType || '', k.expiry || '', k.psu || '', '', '', ''])
     ]), 'Verify in Pharmacy');
 
-    // Tab 3: With Patient
+    // Expired kits tab
+    const expired = kits.filter(k => k.status === 'available_expired');
+    if (expired.length > 0) {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+        ['Kit Number','Kit Type','Expiry','Note'],
+        ...expired.map(k => [k.treatNum, k.kitType || '', k.expiry || '', k.note || ''])
+      ]), 'Expired — Return');
+    }
+
     const withPt = kits.filter(k => k.status === 'with_patient');
-    const ptRows = withPt.map(k => [k.treatNum, k.kitType || '', k.medType === 'vial' ? 'Vial' : 'Tablet', k.subject || '', k.note || '', k.nextVisitInfo || '', '', '']);
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
       ['Kit Number','Kit Type','Med Type','Subject','Note','Next Visit','Monitor Initials','Date'],
-      ...ptRows
+      ...withPt.map(k => [k.treatNum, k.kitType || '', k.medType === 'vial' ? 'Vial' : 'Tablet', k.subject || '', k.note || '', k.nextVisitInfo || '', '', ''])
     ]), 'With Patient');
 
-    // Tab 4: Verify-Returned
     const toVerify = kits.filter(k => k.status === 'returned' || k.status === 'dispensed_unknown');
-    const verRows = toVerify.map(k => [k.treatNum, k.kitType || '', k.subject || '', k.note || '', '', '']);
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
       ['Kit Number','Kit Type','Subject','Note','Monitor Initials','Date'],
-      ...verRows
+      ...toVerify.map(k => [k.treatNum, k.kitType || '', k.subject || '', k.note || '', '', ''])
     ]), 'Verify-Returned');
 
     const date = new Date().toISOString().split('T')[0];
     const filename = 'PharmacyInventory_' + date + '.xlsx';
-
-    // Primary: XLSX.writeFile — fallback: manual blob (mobile / GitHub Pages)
     try {
       XLSX.writeFile(wb, filename);
     } catch(e) {
@@ -2942,7 +2801,6 @@ function exportPharmReport() {
       document.body.appendChild(a); a.click();
       setTimeout(function() { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
     }
-
     toast('Exported: ' + filename);
   } catch(err) {
     console.error('Export error:', err);
