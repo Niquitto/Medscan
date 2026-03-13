@@ -3,7 +3,7 @@
 <head>
 <!--
 ==========================================================================
-  MedScan v2.0 — Clinical Medication Reconciliation PWA
+  MedScan v2.1 — Clinical Medication Reconciliation PWA
   NEW: Pharmacy Inventory screen (R26 + R28 + optional R27)
 ==========================================================================
 -->
@@ -851,7 +851,7 @@ html, body {
     <div class="cra-modal-sub">Used in session headers and LMR exports. Stored locally on this device.</div>
     <div class="field">
       <label>Full name</label>
-      <input type="text" id="cra-name-input" placeholder="e.g. Nicolás Pourtalé" autocomplete="name">
+      <input type="text" id="cra-name-input" placeholder="Your full name" autocomplete="name">
     </div>
     <button class="btn btn-primary" onclick="saveCRAName()" style="margin-top:4px;">Save</button>
     <button class="btn btn-secondary" onclick="closeCRAModal()" style="margin-top:6px;">Cancel</button>
@@ -879,7 +879,7 @@ html, body {
     </div>
     <div class="settings-section">
       <h3>📋 About MedScan</h3>
-      <p>Version 2.0 — Clinical medication reconciliation for CRAs. All data processed locally. No patient data transmitted to external servers (except Claude API for OCR).</p>
+      <p>Version 2.1.0 — Clinical medication reconciliation for CRAs. All data processed locally. No patient data transmitted to external servers (except Claude API for OCR).</p>
     </div>
   </div>
 </div>
@@ -899,8 +899,8 @@ html, body {
     <p class="screen-title">New Session</p>
     <p class="screen-subtitle">Configure this reconciliation visit</p>
     <p class="section-label">Site Information</p>
-    <div class="field"><label>Site Name</label><input type="text" id="site-name" placeholder="e.g. Hospital Italiano — Buenos Aires"></div>
-    <div class="field"><label>Protocol / Study ID</label><input type="text" id="protocol-id" placeholder="e.g. EFC17919"></div>
+    <div class="field"><label>Site Name</label><input type="text" id="site-name" placeholder="Site Name"></div>
+    <div class="field"><label>Protocol / Study ID</label><input type="text" id="protocol-id" placeholder="Protocol / Study ID"></div>
     <div class="field"><label>CRA Name</label><input type="text" id="cra-name" placeholder="Your full name"></div>
     <div class="field"><label>Visit Date</label><input type="date" id="visit-date"></div>
 
@@ -979,11 +979,11 @@ html, body {
     </div>
     <div id="panel-manual" style="display:none;">
       <div class="manual-grid">
-        <div class="field" style="margin-bottom:0;"><label>REF</label><input type="text" id="m-ref" placeholder="e.g. EFC17919" style="text-transform:uppercase;"></div>
-        <div class="field" style="margin-bottom:0;"><label>SN</label><input type="text" id="m-sn" placeholder="0268366"></div>
-        <div class="field" style="margin-bottom:0;"><label>PSU</label><input type="text" id="m-psu" placeholder="59133"></div>
-        <div class="field" style="margin-bottom:0;"><label>LOT</label><input type="text" id="m-lot" placeholder="IP041184"></div>
-        <div class="field" style="margin-bottom:0; grid-column:1/-1;"><label>EXP (MM-YYYY)</label><input type="text" id="m-exp" placeholder="10-2026"></div>
+        <div class="field" style="margin-bottom:0;"><label>REF</label><input type="text" id="m-ref" placeholder="REF Number" style="text-transform:uppercase;"></div>
+        <div class="field" style="margin-bottom:0;"><label>SN</label><input type="text" id="m-sn" placeholder="Serial Number"></div>
+        <div class="field" style="margin-bottom:0;"><label>PSU</label><input type="text" id="m-psu" placeholder="PSU Number"></div>
+        <div class="field" style="margin-bottom:0;"><label>LOT</label><input type="text" id="m-lot" placeholder="Lot Number"></div>
+        <div class="field" style="margin-bottom:0; grid-column:1/-1;"><label>EXP (MM-YYYY)</label><input type="text" id="m-exp" placeholder="MM-YYYY"></div>
       </div>
       <button class="btn btn-primary" onclick="submitManual()">Add Product</button>
     </div>
@@ -1072,19 +1072,19 @@ html, body {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <div>
           <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">CRA Name</label>
-          <input id="pharm-cra" type="text" placeholder="Nicolas Pourtale" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);box-sizing:border-box;" oninput="updatePharmSession()">
+          <input id="pharm-cra" type="text" placeholder="CRA Name" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);box-sizing:border-box;" oninput="updatePharmSession()">
         </div>
         <div>
           <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">Protocol / Study ID</label>
-          <input id="pharm-protocol" type="text" placeholder="EFC17919" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);text-transform:uppercase;box-sizing:border-box;" oninput="updatePharmSession()">
+          <input id="pharm-protocol" type="text" placeholder="Protocol / Study ID" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);text-transform:uppercase;box-sizing:border-box;" oninput="updatePharmSession()">
         </div>
         <div>
           <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">Site Number</label>
-          <input id="pharm-sitenum" type="text" placeholder="0320001" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);box-sizing:border-box;" oninput="updatePharmSession()">
+          <input id="pharm-sitenum" type="text" placeholder="Site Number" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);box-sizing:border-box;" oninput="updatePharmSession()">
         </div>
         <div>
           <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">Site Name</label>
-          <input id="pharm-sitename" type="text" placeholder="Focus CECIC" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);box-sizing:border-box;" oninput="updatePharmSession()">
+          <input id="pharm-sitename" type="text" placeholder="Site Name" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);box-sizing:border-box;" oninput="updatePharmSession()">
         </div>
       </div>
     </div>
@@ -1321,6 +1321,12 @@ function updateSessionStats(protocol, siteNum, siteName, kitsCount) {
 }
 
 // ════════════════════════════════════════════════════════
+//  APP VERSION
+// ════════════════════════════════════════════════════════
+const APP_VERSION = '2.1.0';
+const APP_BUILD_DATE = '2026-03-13';
+
+// ════════════════════════════════════════════════════════
 //  GLOBAL STATE
 // ════════════════════════════════════════════════════════
 const state = {
@@ -1336,6 +1342,8 @@ const state = {
   scanning: false,
   prevScreen: 'screen-home',
 
+  auditLog: [],   // [{ts, action, detail}]
+
   pharm: {
     r26: null, r27: null, r28: null,
     kits: [],
@@ -1344,6 +1352,22 @@ const state = {
     session: { protocol:'', siteNum:'', siteName:'', cra:'', date:'', envioId:'' }
   }
 };
+
+// ────────────────────────────────────────────────────────
+//  AUDIT TRAIL HELPERS
+// ────────────────────────────────────────────────────────
+function auditRecord(action, detail = '') {
+  state.auditLog.push({
+    ts: new Date().toISOString(),
+    action,
+    detail: String(detail).slice(0, 200)
+  });
+}
+function auditGetRows() {
+  const header = ['Timestamp (UTC)', 'Action', 'Detail'];
+  const rows = state.auditLog.map(e => [e.ts, e.action, e.detail]);
+  return [header, ...rows];
+}
 
 // ════════════════════════════════════════════════════════
 //  INIT
@@ -1480,6 +1504,8 @@ function startSession() {
   const date = document.getElementById('visit-date').value;
   state.session = { site, protocol, cra, date, mode: state.mode };
   state.scanned = [];
+  state.auditLog = []; // reset log for new session
+  auditRecord('SESSION_START', `CRA: ${cra} | Protocol: ${protocol} | Site: ${site} | Date: ${date} | Mode: ${state.mode} | App: v${APP_VERSION}`);
   document.getElementById('si-site').textContent     = site;
   document.getElementById('si-protocol').textContent = protocol || '—';
   document.getElementById('si-date').textContent     = date;
@@ -1672,6 +1698,7 @@ function submitManual() {
 function addProduct(product) {
   product.status=validateProduct(product);
   state.scanned.push(product);
+  auditRecord('KIT_SCANNED', `SN: ${product.sn} | REF: ${product.ref||'—'} | LOT: ${product.lot||'—'} | EXP: ${product.exp||'—'} | Status: ${product.status}`);
   updateStats(); renderScanList(); showValidationBanner(product.status,product); updateProgress(); vibrate();
 }
 
@@ -2269,6 +2296,10 @@ function runPharmacyAnalysis(useOverrides = false) {
       const sess2 = state.pharm.session;
       updateSessionStats(sess2.protocol, sess2.siteNum, sess2.siteName, classifiedKits.length);
 
+      // Audit: log file load + kit counts
+      const statusCounts = classifiedKits.reduce((acc, k) => { acc[k.status] = (acc[k.status]||0)+1; return acc; }, {});
+      auditRecord('PHARMA_ANALYSIS', `Protocol: ${sess2.protocol} | Site: ${sess2.siteNum} | Kits: ${classifiedKits.length} | R26: ${state.pharm.r26.length} rows | R28: ${state.pharm.r28.length} rows | Statuses: ${JSON.stringify(statusCounts)}`);
+
       buildMappingPanel(r26map, r28map, r27map);
       renderPharmResults();
 
@@ -2374,7 +2405,7 @@ function _doExportLMR(kits, s, envioId, dateStr, excelDate, siteNum) {
     set(2,2,'Identificación de retiro (ej IMP-STUDY-SITE-FECHA):');
     set(3,3, envioId);
     set(4,3,'Fecha:');                set(5,3, excelDate);
-    set(2,4,'Ej: IMP-EFC17504-0320001-10MAR2026');
+    set(2,4,'Ej: IMP-[PROTOCOL]-[SITE]-[DATE]');
     set(2,5,'CENTRO:');               set(3,5, s.siteName || '—');
     set(2,6,'Persona de contacto:');  set(3,6,'');
     set(5,6,'Caja N°:');         set(6,6, 1);
@@ -2417,6 +2448,7 @@ function _doExportLMR(kits, s, envioId, dateStr, excelDate, siteNum) {
     state.pharm.selectedKits.clear();
     updateLMRFab();
     renderPharmResults();
+    auditRecord('LMR_EXPORTED', `File: ${filename} | Kits: ${kits.length} | Protocol: ${s.protocol} | Site: ${s.siteNum} | EnvioID: ${envioId}`);
     toast('LMR exportado: ' + kits.length + ' kits · ' + filename);
   } catch(err) {
     console.error('LMR export error:', err);
@@ -2465,6 +2497,7 @@ function renderPharmResults() {
     const typeBadge = MED_TYPE_BADGE[k.medType] || '';
     const expiryStr = k.expiry ? `<div class="kit-meta-field">Expiry <b>${k.expiry}</b></div>` : '';
     const subjStr   = k.subject ? `<div class="kit-meta-field">Subject <b>${k.subject}</b></div>` : '';
+    const lotStr    = k.lot ? `<div class="kit-meta-field">LOT <b>${k.lot}</b></div>` : '';
     const psuStr    = k.psu ? `<div class="kit-meta-field">PSU <b>${k.psu}</b></div>` : '';
     const nextStr   = k.nextVisitInfo ? `<div class="kit-next">Next: ${k.nextVisitInfo}</div>` : '';
     const isChecked = state.pharm.selectedKits.has(globalIdx);
@@ -2477,7 +2510,7 @@ function renderPharmResults() {
         <span class="kit-ip" onclick="showKitDetail(${globalIdx})">${k.kitType ? k.kitType.slice(0,28) : ''}</span>
       </div>
       <div class="kit-meta" onclick="showKitDetail(${globalIdx})">
-        ${subjStr}${expiryStr}${psuStr}
+        ${subjStr}${expiryStr}${lotStr}${psuStr}
       </div>
       <div class="kit-status-row" onclick="showKitDetail(${globalIdx})">
         <div class="status-dot d-${sl.dot}"></div>
@@ -2708,6 +2741,7 @@ function showKitDetail(idx) {
     ['Med Type',      (k.medType === 'tablet' ? '💊 Oral / Tablet' : k.medType === 'vial' ? '💉 Vial / Infusion' : '—')],
     ['Subject',       k.subject || '—'],
     ['Expiry',        k.expiry || '—'],
+    ['Lot Number',    k.lot || '—'],
     ['PSU',           k.psu || '—'],
     ['Packaging No.', k.pkg || '—'],
     ['Status',        `<span style="color:var(--${sl.dot === 'blue' ? 'accent' : sl.dot === 'gray' ? 'text-muted' : sl.dot})">${sl.label}</span>`],
@@ -2751,11 +2785,11 @@ function exportPharmReport() {
 
   try {
     const wb = XLSX.utils.book_new();
-    const headers = ['Kit Number','Kit Type','Med Type','Subject','Expiry','PSU','Packaging No.','Status','Note','Next Visit Info'];
+    const headers = ['Kit Number','Kit Type','Med Type','Subject','Expiry','Lot Number','PSU','Packaging No.','Status','Note','Next Visit Info'];
     const rows = kits.map(k => [
       k.treatNum, k.kitType || '',
       k.medType === 'tablet' ? 'Oral/Tablet' : k.medType === 'vial' ? 'Vial/Infusion' : 'Unknown',
-      k.subject || '', k.expiry || '', k.psu || '', k.pkg || '',
+      k.subject || '', k.expiry || '', k.lot || '', k.psu || '', k.pkg || '',
       (STATUS_LABELS[k.status]?.label || k.status).replace(/[^\x00-\x7E]/g, '').trim(),
       k.note || '', k.nextVisitInfo || ''
     ]);
@@ -2763,8 +2797,8 @@ function exportPharmReport() {
 
     const avail = kits.filter(k => k.status === 'available');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-      ['Kit Number','Kit Type','Expiry','PSU','Physically Verified (Y/N)','Monitor Initials','Date'],
-      ...avail.map(k => [k.treatNum, k.kitType || '', k.expiry || '', k.psu || '', '', '', ''])
+      ['Kit Number','Kit Type','Expiry','Lot Number','PSU','Physically Verified (Y/N)','Monitor Initials','Date'],
+      ...avail.map(k => [k.treatNum, k.kitType || '', k.expiry || '', k.lot || '', k.psu || '', '', '', ''])
     ]), 'Verify in Pharmacy');
 
     // Expired kits tab
@@ -2787,6 +2821,10 @@ function exportPharmReport() {
       ['Kit Number','Kit Type','Subject','Note','Monitor Initials','Date'],
       ...toVerify.map(k => [k.treatNum, k.kitType || '', k.subject || '', k.note || '', '', ''])
     ]), 'Verify-Returned');
+
+    // Audit Log tab
+    auditRecord('PHARM_REPORT_EXPORTED', `Total kits: ${kits.length} | Protocol: ${state.pharm.session.protocol} | Site: ${state.pharm.session.siteNum}`);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(auditGetRows()), 'Audit Log');
 
     const date = new Date().toISOString().split('T')[0];
     const filename = 'PharmacyInventory_' + date + '.xlsx';
