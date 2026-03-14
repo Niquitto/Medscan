@@ -413,6 +413,7 @@ html, body {
 
 /* Validation banner */
 .validation-banner { padding: 10px 13px; border-radius: var(--radius-sm); margin-bottom: 10px; font-size: 12px; display: none; line-height: 1.4; }
+.validation-banner.show { display: block; }
 .validation-banner.match     { background: var(--green-bg);  border: 1px solid rgba(48,209,88,0.25);  color: var(--green); }
 .validation-banner.no-match  { background: var(--red-bg);    border: 1px solid rgba(255,69,58,0.25);  color: var(--red); }
 .validation-banner.duplicate { background: var(--yellow-bg); border: 1px solid rgba(255,214,10,0.25); color: var(--yellow); }
@@ -680,6 +681,7 @@ html, body {
 
 /* ── SCAN SCREEN EXTRAS ── */
 .camera-wrap   { position:relative;border-radius:var(--radius);overflow:hidden;background:#000;margin-bottom:10px; }
+.camera-wrap video { width:100%; height:260px; display:block; object-fit:cover; }
 .scan-frame    { position:absolute;inset:12px;border:1.5px solid rgba(0,196,180,0.5);border-radius:10px;pointer-events:none; }
 .scan-line     { position:absolute;left:10%;right:10%;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scanline 2s linear infinite; }
 @keyframes scanline { 0%{top:20%} 50%{top:75%} 100%{top:20%} }
@@ -689,7 +691,8 @@ html, body {
 .scan-item-del { background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;padding:4px;flex-shrink:0; }
 
 /* ── PREVIEW CARD (OCR / manual) ── */
-.preview-card  { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:12px; }
+.preview-card  { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:12px; display:none; }
+.preview-card.show { display:block; }
 .preview-grid  { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
 .preview-title { font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px; }
 
@@ -1342,7 +1345,10 @@ async function startQRCamera() {
     state.scanning = true; statusEl.textContent = 'Searching for code...';
     const codeReader = new ZXing.BrowserMultiFormatReader();
     state.codeReader = codeReader;
-    codeReader.decodeFromStream(stream, video, (result) => { if (result) handleQRResult(result.getText()); });
+    codeReader.decodeFromStream(stream, video, (result, err) => {
+      if (result) handleQRResult(result.getText());
+      // err is normal when no code in frame — ignore NotFoundException
+    });
   } catch (err) {
     state.scanning = false;
     let msg = 'Camera unavailable';
