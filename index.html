@@ -1376,14 +1376,47 @@ function handleQRResult(text) {
 }
 
 function parseQRData(text) {
+  // 1. Try JSON
   try { return normalize(JSON.parse(text)); } catch {}
+
+  // 2. Detect format: if text contains human-readable field names, use text parser
+  const looksLikeText = /(?:REF|SN|PSU|LOT|EXP)[:\s]/i.test(text);
+  if (looksLikeText) {
+    return parseTextLabel(text);
+  }
+
+  // 3. Try GS1 binary parser
   const gs1 = parseGS1(text);
-  if (gs1.lot||gs1.sn||gs1.exp) return gs1;
-  const product={};
-  const patterns = { ref:/(?:REF|ref)[:\s=]+([A-Za-z0-9]+)/i, sn:/(?:SN|S\/N|serial)[:\s=]+([A-Za-z0-9]+)/i, psu:/(?:PSU)[:\s=]+([A-Za-z0-9]+)/i, lot:/(?:LOT|lot)[:\s=]+([A-Za-z0-9]+)/i, exp:/(?:EXP|exp|expiry)[:\s=]+(\d{2}[-\/]\d{4}|\d{4}[-\/]\d{2})/i };
-  let found=false;
-  Object.entries(patterns).forEach(([key,re]) => { const m=text.match(re); if(m){product[key]=m[1];found=true;} });
-  if (!found) product.sn = text.trim().replace(/\s+/g,'');
+  if (gs1.lot || gs1.sn || gs1.exp || gs1.ref) return gs1;
+
+  // 4. Last resort: text parser on anything
+  return parseTextLabel(text);
+}
+
+function parseTextLabel(text) {
+  const product = {};
+  // Allow alphanumeric + hyphens + underscores in values
+  const patterns = {
+    ref: /(?:REF)[:\s=]+([A-Za-z0-9\-_]+)/i,
+    sn:  /(?:\bSN\b|S\/N|serial\s*(?:no|number|num)?)[:\s=]+([A-Za-z0-9\-_]+)/i,
+    psu: /(?:PSU)[:\s=]+([A-Za-z0-9\-_]+)/i,
+    lot: /(?:LOT)[:\s=]+([A-Za-z0-9\-_]+)/i,
+    exp: /(?:EXP(?:IRY|IRATION)?|expiry)[:\s=]+([\d]{2}[-\/][\d]{4}|[\d]{4}[-\/][\d]{2}|[\d]{6})/i
+  };
+  let found = false;
+  Object.entries(patterns).forEach(([key, re]) => {
+    const m = text.match(re);
+    if (m) { product[key] = m[1].trim(); found = true; }
+  });
+  // Normalize EXP: MMYYYY → MM-YYYY, YYYYMM → MM-YYYY
+  if (product.exp) {
+    product.exp = product.exp.replace(/\//g, '-');
+    if (/^\d{6}$/.test(product.exp)) {
+      const mm=product.exp.substr(0,2), yy=product.exp.substr(2,4);
+      product.exp = mm + '-' + yy;
+    }
+  }
+  if (!found) product.sn = text.trim().replace(/\s+/g, '');
   return product;
 }
 
