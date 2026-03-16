@@ -1379,117 +1379,106 @@ function parseQRData(text) {
   // 1. Try JSON
   try { return normalize(JSON.parse(text)); } catch {}
 
-  // 2. Detect format: if text contains human-readable field names, use text parser
-  const looksLikeText = /(?:REF|SN|PSU|LOT|EXP)[:\s]/i.test(text);
-  if (looksLikeText) {
-    return parseTextLabel(text);
-  }
+  // 2. Run both parsers and merge results
+  const textResult = parseTextLabel(text);
+  const gs1Result  = parseGS1(text);
 
-  // 3. Try GS1 binary parser
-  const gs1 = parseGS1(text);
-  if (gs1.lot || gs1.sn || gs1.exp || gs1.ref) return gs1;
+  // GS1 is authoritative for SN / LOT / EXP (binary encoded, no ambiguity)
+  // Text parser is needed for REF (study ID printed on label, not a GS1 AI)
+  const merged = {};
+  merged.sn  = gs1Result.sn  || textResult.sn  || undefined;
+  merged.lot = gs1Result.lot || textResult.lot || undefined;
+  merged.exp = gs1Result.exp || textResult.exp || undefined;
+  merged.psu = gs1Result.psu || textResult.psu || undefined;
+  merged.ref = textResult.ref || undefined;  // GTIN ≠ study REF — never use gs1 GTIN here
 
-  // 4. Last resort: text parser on anything
-  return parseTextLabel(text);
+  // If GS1 found nothing useful, use pure text result
+  if (!merged.sn && !merged.lot) return textResult;
+  return merged;
 }
 
 function parseTextLabel(text) {
   const product = {};
-  // Allow alphanumeric + hyphens + underscores in values
-  const patterns = {
-    ref: /(?:REF)[:\s=]+([A-Za-z0-9\-_]+)/i,
-    sn:  /(?:\bSN\b|S\/N|serial\s*(?:no|number|num)?)[:\s=]+([A-Za-z0-9\-_]+)/i,
-    psu: /(?:PSU)[:\s=]+([A-Za-z0-9\-_]+)/i,
-    lot: /(?:LOT)[:\s=]+([A-Za-z0-9\-_]+)/i,
-    exp: /(?:EXP(?:IRY|IRATION)?|expiry)[:\s=]+([\d]{2}[-\/][\d]{4}|[\d]{4}[-\/][\d]{2}|[\d]{6})/i
-  };
-  let found = false;
-  Object.entries(patterns).forEach(([key, re]) => {
-    const m = text.match(re);
-    if (m) { product[key] = m[1].trim(); found = true; }
-  });
-  // Normalize EXP: MMYYYY → MM-YYYY, YYYYMM → MM-YYYY
-  if (product.exp) {
-    product.exp = product.exp.replace(/\//g, '-');
-    if (/^\d{6}$/.test(product.exp)) {
-      const mm=product.exp.substr(0,2), yy=product.exp.substr(2,4);
-      product.exp = mm + '-' + yy;
+  const FIELD_MAP = { REF:'ref', SN:'sn', PSU:'psu', LOT:'lot', EXP:'exp', EXPIRY:'exp' };
+
+  // Replace GS1 separators with newlines so we can parse line by line
+  const cleaned = text.replace(/[\x1d\x04\u001d\u001D]/g, '\n');
+
+  // ── Strategy 1: Line-by-line (most reliable, handles all separator styles) ──
+  const lines = cleaned.split(/[\n\r]+/).map(l => l.trim()).filter(Boolean);
+  for (const line of lines) {
+    const m = line.match(/^(REF|SN|PSU|LOT|EXPIRY|EXP)[:\s=]+(.+)$/i);
+    if (!m) continue;
+    const fieldKey = FIELD_MAP[m[1].toUpperCase()];
+    if (!fieldKey) continue;
+    let val = m[2].trim();
+    if (fieldKey === 'exp') {
+      val = val.replace(/\//g, '-').replace(/\s+/g, '');
+      if (/^\d{6}$/.test(val)) val = val.substr(0,2) + '-' + val.substr(2,4);
+    } else {
+      val = val.replace(/\s+/g, ''); // remove internal spaces (e.g. "EFC 17504" → "EFC17504")
     }
+    if (val) product[fieldKey] = val;
   }
-  if (!found) product.sn = text.trim().replace(/\s+/g, '');
+
+  // ── Strategy 2: Inline regex fallback (single-line encoded labels) ──
+  if (Object.keys(product).length === 0) {
+    const tryField = (re) => { const m = text.match(re); return m ? m[1].trim().replace(/\s+/g,'') : null; };
+    const r = {
+      ref: tryField(/REF[:\s=]+([A-Za-z0-9][A-Za-z0-9\s\-_]*?)(?=\s+(?:SN|PSU|LOT|EXP)\b|$)/i),
+      sn:  tryField(/\bSN\b[:\s=]+([A-Za-z0-9\-_]+)/i),
+      psu: tryField(/PSU[:\s=]+([A-Za-z0-9\-_]+)/i),
+      lot: tryField(/LOT[:\s=]+([A-Za-z0-9\-_]+)/i),
+    };
+    const expM = text.match(/EXP(?:IRY)?[:\s=]+([\d]{2}[-\/][\d]{4}|[\d]{4}[-\/][\d]{2}|[\d]{6})/i);
+    if (expM) {
+      let e = expM[1].replace(/\//g,'-');
+      if (/^\d{6}$/.test(e)) e = e.substr(0,2)+'-'+e.substr(2,4);
+      r.exp = e;
+    }
+    Object.entries(r).forEach(([k,v]) => { if (v) product[k] = v; });
+  }
+
+  if (!product.ref && !product.sn) product.sn = text.trim().replace(/\s+/g, '');
   return product;
 }
 
 function parseGS1(text) {
   const result = {}, SEP = '\x1d';
   let data = text.replace(/\u001d|\u001D|\u0004|□/g, SEP).replace(/\x1d/g, SEP);
-
-  // Fixed-length AIs: prefix -> data length (excluding prefix)
   const FIXED2 = {'01':14,'02':14,'17':6,'11':6,'13':6,'15':6,'16':6};
-  // Variable-length 2-char AIs -> result key
-  const VAR2 = {'10':'lot','21':'sn','22':'psu'};
-  // Variable-length 3-char AIs -> result key
-  const VAR3 = {'240':'ref','241':'ref','250':'sn','251':'ref'};
-
-  // All known prefixes to detect boundaries in variable fields
+  const VAR2   = {'10':'lot','21':'sn','22':'psu'};
+  const VAR3   = {'240':'ref','241':'ref','250':'sn','251':'ref'};
   const known2 = new Set(Object.keys(FIXED2).concat(Object.keys(VAR2)));
   const known3 = new Set(Object.keys(VAR3));
-
   function varEnd(pos) {
     let best = data.length;
     const sepIdx = data.indexOf(SEP, pos);
     if (sepIdx !== -1 && sepIdx < best) best = sepIdx;
-    // Also stop at next known AI prefix
     for (let j = pos + 1; j < best; j++) {
-      if (known3.has(data.substr(j,3)) || known2.has(data.substr(j,2))) {
-        best = j; break;
-      }
+      if (known3.has(data.substr(j,3)) || known2.has(data.substr(j,2))) { best = j; break; }
     }
     return best;
   }
-
   let i = 0;
   while (i < data.length) {
     if (data[i] === SEP) { i++; continue; }
-
-    const ai3 = data.substr(i, 3);
-    const ai2 = data.substr(i, 2);
-
+    const ai3 = data.substr(i,3), ai2 = data.substr(i,2);
     if (known3.has(ai3)) {
-      i += 3;
-      const end = varEnd(i);
-      const val = data.substring(i, end).trim();
-      if (val) result[VAR3[ai3]] = val;
-      i = (data[end] === SEP) ? end + 1 : end;
-
+      i += 3; const end = varEnd(i); const val = data.substring(i,end).trim();
+      if (val) result[VAR3[ai3]] = val; i = (data[end]===SEP) ? end+1 : end;
     } else if (FIXED2[ai2] !== undefined) {
-      const len = FIXED2[ai2];
-      const val = data.substr(i + 2, len);
-      if (ai2 === '17' || ai2 === '15' || ai2 === '16') {
-        if (val.length === 6) {
-          const yy = val.substr(0,2), mm = val.substr(2,2);
-          result.exp = mm + '-' + (parseInt(yy) > 50 ? '19' : '20') + yy;
-        }
-      } else if (ai2 === '01') {
-        // GTIN — NOT mapped to REF. Study REF (e.g. EFC17504) is
-        // label-printed only; enter it manually in the REF field.
-        result._gtin = val;
+      const len = FIXED2[ai2], val = data.substr(i+2, len);
+      if (ai2==='17'||ai2==='15'||ai2==='16') {
+        if (val.length===6) { const yy=val.substr(0,2),mm=val.substr(2,2); result.exp=mm+'-'+(parseInt(yy)>50?'19':'20')+yy; }
       }
-      i += 2 + len;
-
+      // AI 01 = GTIN, deliberately NOT mapped to REF
+      i += 2+len;
     } else if (VAR2[ai2] !== undefined) {
-      i += 2;
-      const end = varEnd(i);
-      const val = data.substring(i, end).trim();
-      if (val) result[VAR2[ai2]] = val;
-      i = (data[end] === SEP) ? end + 1 : end;
-
-    } else {
-      i++;
-    }
+      i += 2; const end = varEnd(i); const val = data.substring(i,end).trim();
+      if (val) result[VAR2[ai2]] = val; i = (data[end]===SEP) ? end+1 : end;
+    } else { i++; }
   }
-
-  delete result._gtin;
   return result;
 }
 
