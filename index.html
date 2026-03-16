@@ -1399,47 +1399,43 @@ function parseQRData(text) {
 
 function parseTextLabel(text) {
   const product = {};
-  const FIELD_MAP = { REF:'ref', SN:'sn', PSU:'psu', LOT:'lot', EXP:'exp', EXPIRY:'exp' };
 
-  // Replace GS1 separators with newlines so we can parse line by line
-  const cleaned = text.replace(/[\x1d\x04\u001d\u001D]/g, '\n');
+  // Normalize separators: GS1 FNC1, control chars → space
+  const t = text.replace(/[\x1d\x04\u001d\u001D]/g, ' ');
 
-  // ── Strategy 1: Line-by-line (most reliable, handles all separator styles) ──
-  const lines = cleaned.split(/[\n\r]+/).map(l => l.trim()).filter(Boolean);
-  for (const line of lines) {
-    const m = line.match(/^(REF|SN|PSU|LOT|EXPIRY|EXP)[:\s=]+(.+)$/i);
-    if (!m) continue;
-    const fieldKey = FIELD_MAP[m[1].toUpperCase()];
-    if (!fieldKey) continue;
-    let val = m[2].trim();
-    if (fieldKey === 'exp') {
-      val = val.replace(/\//g, '-').replace(/\s+/g, '');
-      if (/^\d{6}$/.test(val)) val = val.substr(0,2) + '-' + val.substr(2,4);
+  // Field names we look for (order matters for lookahead boundary)
+  const FIELDS = ['REF','SN','PSU','LOT','EXP'];
+  const boundary = FIELDS.join(':|') + ':|$';
+
+  FIELDS.forEach(field => {
+    // Capture everything after "FIELD:" up to the next field label or end of string
+    const re = new RegExp(
+      field + '[:\\s=]+([\\s\\S]+?)(?=' + boundary + ')',
+      'i'
+    );
+    const m = t.match(re);
+    if (!m) return;
+
+    let val = m[1].trim();
+
+    if (field === 'EXP') {
+      // Normalize: remove spaces, convert slashes
+      val = val.replace(/\s+/g,'').replace(/\//g,'-');
+      // MMYYYY or YYYYMM (6 digits no separator) → MM-YYYY
+      if (/^\d{6}$/.test(val)) val = val.substr(0,2)+'-'+val.substr(2,4);
     } else {
-      val = val.replace(/\s+/g, ''); // remove internal spaces (e.g. "EFC 17504" → "EFC17504")
+      // Remove internal spaces (e.g. "EFC 17504" → "EFC17504")
+      val = val.replace(/\s+/g,'');
     }
-    if (val) product[fieldKey] = val;
+
+    if (val) product[field.toLowerCase()] = val;
+  });
+
+  // Last-resort: if nothing matched, treat entire string as SN
+  if (!product.ref && !product.sn) {
+    product.sn = text.trim().replace(/\s+/g,'');
   }
 
-  // ── Strategy 2: Inline regex fallback (single-line encoded labels) ──
-  if (Object.keys(product).length === 0) {
-    const tryField = (re) => { const m = text.match(re); return m ? m[1].trim().replace(/\s+/g,'') : null; };
-    const r = {
-      ref: tryField(/REF[:\s=]+([A-Za-z0-9][A-Za-z0-9\s\-_]*?)(?=\s+(?:SN|PSU|LOT|EXP)\b|$)/i),
-      sn:  tryField(/\bSN\b[:\s=]+([A-Za-z0-9\-_]+)/i),
-      psu: tryField(/PSU[:\s=]+([A-Za-z0-9\-_]+)/i),
-      lot: tryField(/LOT[:\s=]+([A-Za-z0-9\-_]+)/i),
-    };
-    const expM = text.match(/EXP(?:IRY)?[:\s=]+([\d]{2}[-\/][\d]{4}|[\d]{4}[-\/][\d]{2}|[\d]{6})/i);
-    if (expM) {
-      let e = expM[1].replace(/\//g,'-');
-      if (/^\d{6}$/.test(e)) e = e.substr(0,2)+'-'+e.substr(2,4);
-      r.exp = e;
-    }
-    Object.entries(r).forEach(([k,v]) => { if (v) product[k] = v; });
-  }
-
-  if (!product.ref && !product.sn) product.sn = text.trim().replace(/\s+/g, '');
   return product;
 }
 
