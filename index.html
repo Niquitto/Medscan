@@ -401,6 +401,12 @@ html, body {
         <div class="scan-overlay"><div class="scan-frame"><div class="scan-line"></div></div></div>
         <div class="scan-status" id="scan-status">Searching for code...</div>
       </div>
+      <div id="debug-panel" style="background:rgba(0,0,0,0.9);border:1px solid rgba(0,196,180,0.4);border-radius:8px;padding:10px;margin-bottom:8px;display:none;">
+        <div style="font-size:9px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">🔍 Debug — Raw QR</div>
+        <div id="debug-raw"    style="font-family:'DM Mono',monospace;font-size:10px;color:#fff;word-break:break-all;margin-bottom:3px;line-height:1.4;"></div>
+        <div id="debug-hex"    style="font-family:'DM Mono',monospace;font-size:9px;color:var(--yellow);word-break:break-all;margin-bottom:3px;line-height:1.4;"></div>
+        <div id="debug-parsed" style="font-family:'DM Mono',monospace;font-size:9px;color:var(--green);word-break:break-all;line-height:1.4;"></div>
+      </div>
     </div>
     <!-- OCR PANEL -->
     <div id="panel-ocr" style="display:none;">
@@ -750,9 +756,26 @@ function handleQRResult(text) {
   lastQRText=text; lastQRTime=now;
   document.getElementById('scan-status').textContent='✓ Code detected!';
   setTimeout(() => { const el=document.getElementById('scan-status'); if(el) el.textContent='Searching for code...'; }, 1500);
-  const parsed = parseQRData(text);
-  if (parsed._gtinOnly) return; // GTIN-only barcode — toast already shown, skip preview
-  showPreview(parsed); vibrate();
+
+  // ── DEBUG: show raw bytes and parsed result ──
+  const hexStr = Array.from(text).map(c => {
+    const code = c.charCodeAt(0);
+    return code < 32 || code > 126 ? '[' + code + ']' : c;
+  }).join('');
+  const debugPanel = document.getElementById('debug-panel');
+  if (debugPanel) {
+    debugPanel.style.display = 'block';
+    document.getElementById('debug-raw').textContent   = 'TEXT: ' + text;
+    document.getElementById('debug-hex').textContent   = 'BYTES: ' + hexStr;
+    const parsed = parseQRData(text);
+    document.getElementById('debug-parsed').textContent = 'PARSED: ' + JSON.stringify(parsed);
+    if (parsed._gtinOnly) return;
+    showPreview(parsed); vibrate();
+  } else {
+    const parsed = parseQRData(text);
+    if (parsed._gtinOnly) return;
+    showPreview(parsed); vibrate();
+  }
 }
 
 // ═══════════════ PARSING ═══════════════
