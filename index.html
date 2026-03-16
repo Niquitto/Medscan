@@ -754,28 +754,25 @@ function handleQRResult(text) {
   const now = Date.now();
   if (text===lastQRText && now-lastQRTime<3000) return;
   lastQRText=text; lastQRTime=now;
-  document.getElementById('scan-status').textContent='✓ Code detected!';
-  setTimeout(() => { const el=document.getElementById('scan-status'); if(el) el.textContent='Searching for code...'; }, 1500);
 
-  // ── DEBUG: show raw bytes and parsed result ──
+  // Show raw text in scan-status for debugging
   const hexStr = Array.from(text).map(c => {
     const code = c.charCodeAt(0);
     return code < 32 || code > 126 ? '[' + code + ']' : c;
   }).join('');
-  const debugPanel = document.getElementById('debug-panel');
-  if (debugPanel) {
-    debugPanel.style.display = 'block';
-    document.getElementById('debug-raw').textContent   = 'TEXT: ' + text;
-    document.getElementById('debug-hex').textContent   = 'BYTES: ' + hexStr;
-    const parsed = parseQRData(text);
-    document.getElementById('debug-parsed').textContent = 'PARSED: ' + JSON.stringify(parsed);
-    if (parsed._gtinOnly) return;
-    showPreview(parsed); vibrate();
-  } else {
-    const parsed = parseQRData(text);
-    if (parsed._gtinOnly) return;
-    showPreview(parsed); vibrate();
-  }
+  const statusEl = document.getElementById('scan-status');
+  statusEl.textContent = 'RAW: ' + hexStr;
+  statusEl.style.cssText = 'position:absolute;bottom:4px;left:4px;right:4px;transform:none;background:rgba(0,0,0,0.92);backdrop-filter:blur(8px);padding:6px 8px;border-radius:8px;font-size:9px;color:var(--yellow);white-space:normal;word-break:break-all;line-height:1.4;border:1px solid rgba(255,214,10,0.3);';
+  // keep it visible for 8 seconds
+  clearTimeout(statusEl._t);
+  statusEl._t = setTimeout(() => {
+    statusEl.textContent = 'Searching for code...';
+    statusEl.style.cssText = '';
+  }, 8000);
+
+  const parsed = parseQRData(text);
+  if (parsed._gtinOnly) return;
+  showPreview(parsed); vibrate();
 }
 
 // ═══════════════ PARSING ═══════════════
