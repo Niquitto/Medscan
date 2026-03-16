@@ -4,14 +4,15 @@
 <!--
 ==========================================================================
   MedScan — Kit Scanning for Clinical Site Visits
-  ==========================================================================
+  v2.2.0 — fixes: REF handling, OCR capture, capture-tab CSS
+==========================================================================
 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#08090E">
-<title>MedScan — Clinical Reconciliation</title>
+<title>MedScan — Kit Scanning</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 
@@ -54,704 +55,197 @@ html, body {
   overflow: hidden;
 }
 
-/* ── DESKTOP LAYOUT ── */
 @media (min-width: 600px) {
-  html, body {
-    overflow: auto;
-    height: auto;
-    min-height: 100vh;
-    background: #06070D;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-  }
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background:
-      radial-gradient(ellipse at 20% 50%, rgba(0,196,180,0.04) 0%, transparent 55%),
-      radial-gradient(ellipse at 80% 20%, rgba(10,132,255,0.04) 0%, transparent 55%);
-    pointer-events: none;
-    z-index: 0;
-  }
-  .app {
-    max-width: 480px;
-    min-height: 100vh;
-    border-left: 1px solid var(--border);
-    border-right: 1px solid var(--border);
-    box-shadow: 0 0 80px rgba(0,0,0,0.7);
-    position: relative;
-    z-index: 1;
-  }
-  .screen.active {
-    min-height: 100vh;
-  }
-  .content {
-    overflow-y: auto;
-  }
+  html, body { overflow: auto; height: auto; min-height: 100vh; background: #06070D; display: flex; align-items: flex-start; justify-content: center; }
+  body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse at 20% 50%, rgba(0,196,180,0.04) 0%, transparent 55%), radial-gradient(ellipse at 80% 20%, rgba(10,132,255,0.04) 0%, transparent 55%); pointer-events: none; z-index: 0; }
+  .app { max-width: 480px; min-height: 100vh; border-left: 1px solid var(--border); border-right: 1px solid var(--border); box-shadow: 0 0 80px rgba(0,0,0,0.7); position: relative; z-index: 1; }
+  .screen.active { min-height: 100vh; }
+  .content { overflow-y: auto; }
 }
 
-/* ── LAYOUT ── */
 .app { display: flex; flex-direction: column; height: 100vh; max-width: 430px; margin: 0 auto; position: relative; overflow: hidden; }
 .screen { display: none; flex-direction: column; height: 100%; overflow: hidden; }
 .screen.active { display: flex; min-height: 100vh; min-height: 100dvh; }
 .content { flex: 1; overflow-y: auto; padding: 0 20px 80px; -webkit-overflow-scrolling: touch; }
 .content::-webkit-scrollbar { display: none; }
 
-/* ── HEADER ── */
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 20px 0;
-  padding-top: max(20px, env(safe-area-inset-top, 52px));
-  flex-shrink: 0;
-}
+.header { display: flex; align-items: center; justify-content: space-between; padding: 20px 20px 0; padding-top: max(20px, env(safe-area-inset-top, 52px)); flex-shrink: 0; }
 .logo { display: flex; align-items: center; gap: 9px; }
-.logo-mark {
-  width: 32px; height: 32px;
-  background: linear-gradient(135deg, var(--accent) 0%, #0070C9 100%);
-  border-radius: 9px;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 15px; color: #fff;
-  box-shadow: 0 3px 10px rgba(0,196,180,0.30);
-  flex-shrink: 0;
-}
+.logo-mark { width: 32px; height: 32px; background: linear-gradient(135deg, var(--accent) 0%, #0070C9 100%); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #fff; box-shadow: 0 3px 10px rgba(0,196,180,0.30); flex-shrink: 0; }
 .logo-text { font-size: 18px; font-weight: 700; letter-spacing: -.2px; }
 .logo-text span { color: var(--accent); }
 .header-actions { display: flex; gap: 8px; }
-.icon-btn {
-  width: 34px; height: 34px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  color: var(--text-muted);
-  font-size: 15px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: border-color .15s, color .15s;
-}
+.icon-btn { width: 34px; height: 34px; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; color: var(--text-muted); font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: border-color .15s, color .15s; }
 .icon-btn:hover { border-color: var(--border2); color: var(--text); }
 
-/* ── SECTION LABEL ── */
-.section-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .10em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin: 24px 0 10px;
-}
+.section-label { font-size: 10px; font-weight: 700; letter-spacing: .10em; text-transform: uppercase; color: var(--text-dim); margin: 24px 0 10px; }
 
-/* ── BUTTONS ── */
-.btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  gap: 6px;
-  padding: 12px 20px;
-  border-radius: var(--radius-sm);
-  font-family: 'Syne', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  transition: opacity .15s, transform .1s;
-  letter-spacing: -.1px;
-  width: 100%;
-  margin-top: 10px;
-}
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 20px; border-radius: var(--radius-sm); font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 600; border: none; cursor: pointer; transition: opacity .15s, transform .1s; letter-spacing: -.1px; width: 100%; margin-top: 10px; }
 .btn:active { transform: scale(.98); opacity: .9; }
 .btn-primary  { background: var(--accent); color: var(--bg); }
 .btn-success  { background: var(--green);  color: var(--bg); }
-.btn-secondary {
-  background: var(--surface);
-  border: 1px solid var(--border2);
-  color: var(--text-muted);
-}
+.btn-secondary { background: var(--surface); border: 1px solid var(--border2); color: var(--text-muted); }
 .btn:disabled { opacity: .35; pointer-events: none; }
 
-/* ── HOME SCREEN ── */
-.home-top {
-  padding: 22px 0 0;
-}
-.home-identity {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 22px;
-}
-.home-date {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-dim);
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  margin-bottom: 3px;
-}
-.home-title {
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -.5px;
-  line-height: 1.1;
-}
+/* HOME */
+.home-top { padding: 22px 0 0; }
+.home-identity { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+.home-date { font-size: 11px; font-weight: 600; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 3px; }
+.home-title { font-size: 24px; font-weight: 800; letter-spacing: -.5px; line-height: 1.1; }
 .home-title .name-accent { color: var(--accent); }
-.avatar-btn {
-  width: 38px; height: 38px;
-  background: var(--surface2);
-  border: 1px solid var(--border2);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700;
-  color: var(--text-muted);
-  cursor: pointer;
-  flex-shrink: 0;
-  font-family: 'DM Mono', monospace;
-  letter-spacing: 0;
-  transition: border-color .15s;
-}
+.avatar-btn { width: 38px; height: 38px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--text-muted); cursor: pointer; flex-shrink: 0; font-family: 'DM Mono', monospace; transition: border-color .15s; }
 .avatar-btn:hover { border-color: var(--accent); }
-
-/* Session stats strip */
-.stats-strip {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-.stat-chip {
-  flex: 1;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 9px 10px;
-  min-width: 0;
-}
-.stat-n {
-  font-family: 'DM Mono', monospace;
-  font-size: 20px;
-  font-weight: 500;
-  color: var(--text);
-  letter-spacing: -.5px;
-  line-height: 1;
-  margin-bottom: 2px;
-}
-.stat-l {
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: .07em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Menu cards */
+.stats-strip { display: flex; gap: 6px; margin-bottom: 6px; }
+.stat-chip { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 10px; min-width: 0; }
+.stat-n { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 500; color: var(--text); letter-spacing: -.5px; line-height: 1; margin-bottom: 2px; }
+.stat-l { font-size: 9px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: .07em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .menu-grid { display: flex; flex-direction: column; gap: 8px; }
-.menu-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 15px 14px;
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  cursor: pointer;
-  transition: border-color .15s, background .15s;
-  position: relative;
-  overflow: hidden;
-}
-.menu-card::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.025) 0%, transparent 50%);
-  pointer-events: none;
-}
+.menu-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 15px 14px; display: flex; align-items: center; gap: 13px; cursor: pointer; transition: border-color .15s, background .15s; position: relative; overflow: hidden; }
+.menu-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.025) 0%, transparent 50%); pointer-events: none; }
 .menu-card:hover, .menu-card:active { border-color: var(--border2); background: var(--surface2); }
-.menu-card.featured {
-  background: linear-gradient(135deg, rgba(0,196,180,0.10) 0%, rgba(0,112,201,0.06) 100%);
-  border-color: rgba(0,196,180,0.18);
-}
-.menu-card-icon {
-  width: 42px; height: 42px;
-  border-radius: 11px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 19px;
-  flex-shrink: 0;
-}
-.menu-card-icon.green  { background: var(--green-bg); }
-.menu-card-icon.blue   { background: var(--blue-bg); }
-.menu-card-icon.teal   { background: var(--accent-bg); }
+.menu-card.featured { background: linear-gradient(135deg, rgba(0,196,180,0.10) 0%, rgba(0,112,201,0.06) 100%); border-color: rgba(0,196,180,0.18); }
+.menu-card-icon { width: 42px; height: 42px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0; }
+.menu-card-icon.blue { background: var(--blue-bg); }
 .menu-card-body { flex: 1; min-width: 0; }
 .menu-card-body h3 { font-size: 14px; font-weight: 700; margin-bottom: 2px; letter-spacing: -.1px; }
 .menu-card-body p  { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
 .menu-card-arrow { font-size: 18px; color: var(--text-dim); flex-shrink: 0; }
-
-/* Recent activity */
-.recent-item {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px 14px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  margin-bottom: 6px;
-}
-.recent-icon {
-  width: 34px; height: 34px;
-  border-radius: 9px;
-  background: var(--green-bg);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 15px;
-  flex-shrink: 0;
-}
+.recent-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; align-items: center; gap: 12px; cursor: pointer; margin-bottom: 6px; }
+.recent-icon { width: 34px; height: 34px; border-radius: 9px; background: var(--green-bg); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
 .recent-body { flex: 1; min-width: 0; }
 .recent-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .recent-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
 .recent-arrow { font-size: 14px; color: var(--text-dim); }
 
-/* CRA name modal overlay */
-.cra-modal {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.75);
-  backdrop-filter: blur(8px);
-  z-index: 300;
-  display: flex;
-  align-items: flex-end;
-  padding: 20px;
-  padding-bottom: max(20px, env(safe-area-inset-bottom, 20px));
-}
-.cra-modal-box {
-  background: var(--surface2);
-  border: 1px solid var(--border2);
-  border-radius: 20px;
-  padding: 24px 20px 20px;
-  width: 100%;
-}
+/* CRA MODAL */
+.cra-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 300; display: flex; align-items: flex-end; padding: 20px; padding-bottom: max(20px, env(safe-area-inset-bottom, 20px)); }
+.cra-modal-box { background: var(--surface2); border: 1px solid var(--border2); border-radius: 20px; padding: 24px 20px 20px; width: 100%; }
 .cra-modal-title { font-size: 18px; font-weight: 800; letter-spacing: -.3px; margin-bottom: 4px; }
 .cra-modal-sub   { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.5; }
 
-/* ── FORMS ── */
+/* FORMS */
 .field { margin-bottom: 14px; }
 .field label { display: block; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
-.field input, .field select {
-  width: 100%;
-  background: var(--surface2);
-  border: 1px solid var(--border2);
-  border-radius: var(--radius-sm);
-  padding: 11px 13px;
-  color: var(--text);
-  font-family: 'Syne', sans-serif;
-  font-size: 14px;
-  outline: none;
-  transition: border-color .15s, box-shadow .15s;
-}
+.field input, .field select { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 11px 13px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 14px; outline: none; transition: border-color .15s, box-shadow .15s; }
 .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,196,180,0.12); }
-.field select { cursor: pointer; }
-.field select option { background: var(--surface2); }
 
-/* ── SETUP SCREEN (Kit Scanning) ── */
+/* SETUP */
 .screen-title   { font-size: 28px; font-weight: 800; letter-spacing: -.6px; line-height: 1.1; margin: 20px 0 4px; }
 .screen-subtitle{ font-size: 13px; color: var(--text-muted); margin-bottom: 22px; }
-
-/* Upload zones */
-.upload-zone {
-  background: var(--surface);
-  border: 1.5px dashed var(--border2);
-  border-radius: var(--radius);
-  padding: 20px 16px;
-  text-align: center;
-  cursor: pointer;
-  transition: all .2s;
-  position: relative;
-  margin-bottom: 4px;
-}
-.upload-zone input[type=file] {
-  position: absolute; inset: 0;
-  opacity: 0; cursor: pointer; width: 100%; height: 100%;
-}
+.upload-zone { background: var(--surface); border: 1.5px dashed var(--border2); border-radius: var(--radius); padding: 20px 16px; text-align: center; cursor: pointer; transition: all .2s; position: relative; margin-bottom: 4px; }
+.upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
 .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: var(--accent-bg); }
-.upload-zone.optional { opacity: .65; }
 .upload-icon  { font-size: 22px; margin-bottom: 6px; }
 .upload-label { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 2px; }
 .upload-hint  { font-size: 11px; color: var(--text-dim); }
-.header-preview { font-size: 10px; color: var(--accent); margin-top: 6px; line-height: 1.6; }
-.sheet-selector { margin-top: 8px; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 6px; }
-.sheet-selector select { background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; padding: 3px 8px; color: var(--text); font-size: 11px; }
+.alert-strip { background: var(--accent-bg); border: 1px solid rgba(0,196,180,0.18); border-radius: var(--radius-sm); padding: 10px 13px; font-size: 12px; color: var(--accent); margin-bottom: 16px; display: flex; gap: 8px; align-items: flex-start; line-height: 1.5; }
 
-/* Alert strip */
-.alert-strip {
-  background: var(--accent-bg);
-  border: 1px solid rgba(0,196,180,0.18);
-  border-radius: var(--radius-sm);
-  padding: 10px 13px;
-  font-size: 12px;
-  color: var(--accent);
-  margin-bottom: 16px;
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  line-height: 1.5;
-}
-
-/* ── SCANNER SCREEN ── */
-.video-container {
-  position: relative;
-  background: #000;
-  border-radius: var(--radius);
-  overflow: hidden;
-  margin-bottom: 12px;
-}
-.video-container video { width: 100%; display: block; max-height: 260px; object-fit: cover; }
-.scan-overlay { position: absolute; inset: 0; border: 2px solid rgba(0,196,180,0.4); border-radius: var(--radius); pointer-events: none; }
-.scan-status  { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); padding: 5px 14px; border-radius: 20px; font-size: 11px; color: var(--accent); white-space: nowrap; border: 1px solid rgba(0,196,180,0.25); }
-
-.scan-tabs { display: flex; background: var(--surface); border-radius: var(--radius-sm); padding: 3px; margin-bottom: 14px; gap: 3px; }
-.scan-tab { flex: 1; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--text-muted); border: none; background: transparent; cursor: pointer; font-family: 'Syne', sans-serif; transition: all .15s; }
-.scan-tab.active { background: var(--surface2); color: var(--text); border: 1px solid var(--border2); }
-
-/* Validation banner */
-.validation-banner { padding: 10px 13px; border-radius: var(--radius-sm); margin-bottom: 10px; font-size: 12px; display: none; line-height: 1.4; }
-.validation-banner.show { display: block; }
-.validation-banner.match     { background: var(--green-bg);  border: 1px solid rgba(48,209,88,0.25);  color: var(--green); }
-.validation-banner.no-match  { background: var(--red-bg);    border: 1px solid rgba(255,69,58,0.25);  color: var(--red); }
-.validation-banner.duplicate { background: var(--yellow-bg); border: 1px solid rgba(255,214,10,0.25); color: var(--yellow); }
-.validation-banner.pending   { background: var(--accent-bg); border: 1px solid rgba(0,196,180,0.2);   color: var(--accent); }
-
-/* Preview fields */
-.preview-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-.preview-field { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; }
-.pf-label { font-size: 9px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 3px; }
-.preview-field input { background: none; border: none; padding: 0; font-size: 13px; font-family: 'DM Mono', monospace; color: var(--text); width: 100%; outline: none; }
-
-/* Manual entry area */
-.manual-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-.manual-fields .field { margin-bottom: 0; }
-
-/* ── SCAN LIST ── */
-.scan-list { margin-top: 8px; }
-.scan-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.scan-item.scanned   { border-left: 3px solid var(--accent); }
-.scan-item.no-match  { border-left: 3px solid var(--red); }
-.scan-item.duplicate { border-left: 3px solid var(--yellow); }
-.scan-item-status { width: 30px; height: 30px; border-radius: 8px; background: var(--accent-bg); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
-.scan-item.no-match  .scan-item-status { background: var(--red-bg); }
-.scan-item.duplicate .scan-item-status { background: var(--yellow-bg); }
-.scan-item-body { flex: 1; min-width: 0; }
-.scan-item-sn   { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'DM Mono', monospace; }
-.scan-item-meta { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
-.scan-item-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px; flex-shrink: 0; font-family: 'Syne', sans-serif; }
-.status-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; }
-.status-badge.scanned   { background: var(--accent-bg); color: var(--accent); }
-.status-badge.no-match  { background: var(--red-bg);    color: var(--red); }
-.status-badge.duplicate { background: var(--yellow-bg); color: var(--yellow); }
-.status-badge.missing   { background: var(--red-bg);    color: var(--red); }
-
-/* ── SUMMARY TABLE ── */
-.summary-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.summary-table th { text-align: left; padding: 8px 10px; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); }
-.summary-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text-muted); vertical-align: middle; }
-.summary-table tr.match     td { border-left: 3px solid var(--green); }
-.summary-table tr.no-match  td { border-left: 3px solid var(--red); }
-.summary-table tr.duplicate td { border-left: 3px solid var(--yellow); }
-.summary-table tr.missing   td { border-left: 3px solid var(--red); background: rgba(255,69,58,0.03); }
-
-
-}
-
-/* Filter bar */
-.filter-bar { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; scrollbar-width: none; }
-.filter-bar::-webkit-scrollbar { display: none; }
-.filter-pill {
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 12px; font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-muted);
-  transition: all .15s;
-}
-.filter-pill.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
-.filter-pill.p-green  { border-color: rgba(48,209,88,0.25); color: var(--green); }
-.filter-pill.p-red    { border-color: rgba(255,69,58,0.25);  color: var(--red); }
-.filter-pill.p-yellow { border-color: rgba(255,214,10,0.25); color: var(--yellow); }
-
-/* Kit cards */
-.kit-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 13px 13px 11px;
-  margin-bottom: 7px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  transition: border-color .15s;
-}
-.kit-card::after {
-  content: ''; position: absolute;
-  left: 0; top: 0; bottom: 0; width: 3px;
-}
-.kit-card.k-green::after  { background: var(--green); }
-.kit-card.k-red::after    { background: var(--red); }
-.kit-card.k-yellow::after { background: var(--yellow); }
-.kit-card.k-blue::after   { background: var(--blue); }
-.kit-card.k-gray::after   { background: var(--text-dim); }
-.kit-card.selected { border-color: rgba(0,196,180,0.28); background: rgba(0,196,180,0.04); }
-.kit-checkbox { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
-
-.kit-card-top {
-  display: flex; align-items: center; gap: 8px;
-  margin-bottom: 8px;
-}
-.kit-num {
-  font-family: 'DM Mono', monospace;
-  font-size: 14px; font-weight: 500;
-  color: var(--text); letter-spacing: .02em;
-}
-.kit-ip {
-  font-size: 11px; color: var(--text-muted);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  flex: 1;
-}
-.type-badge {
-  font-size: 9px; font-weight: 700;
-  padding: 2px 7px; border-radius: 5px;
-  text-transform: uppercase; letter-spacing: .05em;
-  flex-shrink: 0;
-}
-.type-vial   { background: var(--accent-bg); color: var(--accent); }
-.type-tablet { background: var(--blue-bg);   color: var(--blue); }
-.type-other  { background: var(--surface2);  color: var(--text-muted); }
-
-.kit-meta { display: flex; gap: 14px; margin-bottom: 9px; flex-wrap: wrap; }
-.kit-meta-field { font-size: 11px; color: var(--text-muted); }
-.kit-meta-field b { color: var(--text); font-weight: 500; font-family: 'DM Mono', monospace; font-size: 11px; }
-
-.kit-status-row { display: flex; align-items: flex-start; gap: 7px; }
-.status-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
-.d-green  { background: var(--green);  box-shadow: 0 0 5px rgba(48,209,88,.4); }
-.d-red    { background: var(--red);    box-shadow: 0 0 5px rgba(255,69,58,.4); }
-.d-yellow { background: var(--yellow); box-shadow: 0 0 5px rgba(255,214,10,.4); }
-.d-blue   { background: var(--blue);   box-shadow: 0 0 5px rgba(10,132,255,.4); }
-.d-gray   { background: var(--text-dim); }
-.status-text { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
-.t-green  { color: var(--green); }
-.t-red    { color: var(--red); }
-.t-yellow { color: var(--yellow); }
-.t-blue   { color: var(--blue); }
-.kit-next { font-size: 10px; color: var(--text-dim); margin-left: auto; white-space: nowrap; flex-shrink: 0; }
-
-/* Kit detail panel */
-.kit-detail-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.65);
-  backdrop-filter: blur(6px);
-  z-index: 100;
-  display: none;
-  align-items: flex-end;
-  padding: 0;
-}
-.kit-detail-overlay.open { display: flex; }
-.kit-detail-panel {
-  background: var(--surface2);
-  border: 1px solid var(--border2);
-  border-radius: 20px 20px 0 0;
-  padding: 20px 20px max(20px, env(safe-area-inset-bottom, 20px));
-  width: 100%;
-  max-height: 75vh;
-  overflow-y: auto;
-}
-.kit-detail-panel::-webkit-scrollbar { display: none; }
-.kit-detail-handle { width: 36px; height: 4px; background: var(--border2); border-radius: 2px; margin: 0 auto 16px; }
-.kit-detail-row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-.kit-detail-row:last-child { border-bottom: none; }
-.kit-detail-key   { color: var(--text-muted); font-size: 12px; }
-.kit-detail-value { color: var(--text); font-weight: 500; font-family: 'DM Mono', monospace; font-size: 12px; text-align: right; max-width: 60%; word-break: break-all; }
-
-/* LMR floating action button */
-.lmr-fab {
-  position: fixed;
-  bottom: max(24px, env(safe-area-inset-bottom, 24px));
-  left: 50%; transform: translateX(-50%);
-  z-index: 90;
-  background: var(--accent);
-  color: var(--bg);
-  border: none;
-  border-radius: 14px;
-  padding: 13px 22px;
-  font-family: 'Syne', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 8px 28px rgba(0,196,180,0.35);
-  display: none;
-  white-space: nowrap;
-  transition: opacity .2s, transform .2s;
-  letter-spacing: -.1px;
-  align-items: center;
-  gap: 8px;
-}
-.lmr-fab.visible { display: flex; }
-.lmr-fab:active  { transform: translateX(-50%) scale(.97); }
-
-/* Column mapping panel */
-#col-mapping-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px; }
-.col-mapping-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
-.col-map-row { background: var(--surface2); border-radius: var(--radius-xs); padding: 7px 9px; display: flex; gap: 6px; align-items: center; font-size: 11px; }
-.col-map-key { color: var(--text-dim); font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
-.col-map-val { color: var(--accent); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.col-map-missing { color: var(--red); font-size: 10px; }
-
-/* Loading spinner */
-.loading-overlay { position: fixed; inset: 0; background: rgba(8,9,14,0.8); backdrop-filter: blur(4px); z-index: 200; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px; }
-.loading-overlay.show { display: flex; }
-.spinner { width: 36px; height: 36px; border: 3px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
-.loading-text { font-size: 13px; color: var(--text-muted); }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Toast */
-.toast {
-  position: fixed;
-  bottom: 32px; left: 50%;
-  transform: translateX(-50%) translateY(20px);
-  background: var(--surface2);
-  border: 1px solid var(--border2);
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-size: 13px;
-  color: var(--text);
-  z-index: 1000;
-  opacity: 0;
-  transition: opacity .2s, transform .2s;
-  white-space: nowrap;
-  max-width: 90vw;
-  text-align: center;
-  pointer-events: none;
-}
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-/* Settings */
-.settings-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
-.settings-section h3 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
-.settings-section p  { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5; }
-
-/* Missing section */
-.missing-count { font-size: 12px; font-weight: 600; color: var(--red); background: var(--red-bg); border-radius: var(--radius-xs); padding: 4px 10px; display: inline-block; margin-bottom: 10px; }
-
-/* Scan results summary */
-#results-section { padding: 0 0 20px; }
-.results-header  { margin: 16px 0 10px; }
-
-/* Upload hint */
-#upload-hint { font-size: 11px; color: var(--text-dim); margin-top: 6px; text-align: center; }
-
-/* Envio modal */
-#envio-modal {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.7);
-  z-index: 500;
-  display: flex; align-items: flex-end;
-  padding: 20px;
-  padding-bottom: max(20px, env(safe-area-inset-bottom, 20px));
-}
-
-
-/* ── COLUMN MAPPING PANEL ── */
-.col-map-panel  { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px; }
-.col-map-title  { font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em; }
-.col-map-toggle { font-size:11px;color:var(--accent);cursor:pointer;float:right; }
-.col-map-grid   { display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px; }
-.col-map-field  { background:var(--surface2);border-radius:var(--radius-xs);padding:6px 9px;display:flex;flex-direction:column;gap:2px;font-size:11px; }
-.col-map-badge  { font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--accent-bg);color:var(--accent); }
-.col-map-detected { color:var(--text-muted);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
-.col-map-override input { background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:3px 7px;color:var(--text);font-size:10px;width:100%; }
-
-/* ── EMPTY STATE ── */
-.empty-state { text-align:center;padding:40px 20px;color:var(--text-muted); }
-.empty-icon  { font-size:36px;margin-bottom:10px; }
-
-/* ── LOADING / PROGRESS ── */
-.loading-msg  { font-size:13px;color:var(--text-muted);text-align:center;padding:20px; }
-.progress-wrap { background:var(--surface);border-radius:4px;height:4px;overflow:hidden;margin:8px 0; }
+/* SCAN SCREEN */
+.session-info-bar { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 13px;margin-bottom:12px;display:flex;gap:16px;flex-wrap:wrap;flex-shrink:0; }
+.progress-wrap { background:var(--surface);border-radius:4px;height:4px;overflow:hidden;margin:8px 0;flex-shrink:0; }
 .progress-bar  { height:100%;background:var(--accent);border-radius:4px;transition:width .3s; }
-
-/* ── SCAN SCREEN EXTRAS ── */
-.camera-wrap   { position:relative;border-radius:var(--radius);overflow:hidden;background:#000;margin-bottom:10px; }
-.camera-wrap video { width:100%; height:260px; display:block; object-fit:cover; }
-.scan-frame    { position:absolute;inset:12px;border:1.5px solid rgba(0,196,180,0.5);border-radius:10px;pointer-events:none; }
-.scan-line     { position:absolute;left:10%;right:10%;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scanline 2s linear infinite; }
-@keyframes scanline { 0%{top:20%} 50%{top:75%} 100%{top:20%} }
-.btn-row       { display:flex;gap:8px;margin-bottom:10px; }
-.btn-row .btn  { margin-top:0; }
-.scan-item-info{ flex:1;min-width:0; }
-.scan-item-del { background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;padding:4px;flex-shrink:0; }
-
-/* ── PREVIEW CARD (OCR / manual) ── */
-.preview-card  { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:12px; display:none; }
-.preview-card.show { display:block; }
-.preview-grid  { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
-.preview-title { font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px; }
-
-/* ── MODAL ── */
-.modal-backdrop { position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:100;display:none;align-items:flex-end; }
-.modal-backdrop.show { display:flex; }
-.modal {
-  background: var(--surface2);
-  border: 1px solid var(--border2);
-  border-radius: 20px 20px 0 0;
-  padding: 20px 20px max(20px, env(safe-area-inset-bottom, 20px));
-  width: 100%;
-  max-height: 80vh;
-  overflow-y: auto;
-}
-.modal::-webkit-scrollbar { display: none; }
-.modal-title { font-size: 16px; font-weight: 700; letter-spacing: -.2px; margin-bottom: 14px; }
-.modal-handle   { width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px; }
-
-/* ── SESSION INFO BAR ── */
-.session-info-bar { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 13px;margin-bottom:12px;display:flex;gap:16px;flex-wrap:wrap; }
-
-/* ── STAT VAL / LBL (Kit Scanning results) ── */
 .stat-val { font-family:'DM Mono',monospace;font-size:22px;font-weight:500;letter-spacing:-.5px;color:var(--text);line-height:1; }
 .stat-lbl { font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-top:2px; }
 
-/* ── CAPTURE TABS ── */
+/* CAPTURE TABS */
 .capture-tabs { display:flex;background:var(--surface);border-radius:var(--radius-sm);padding:3px;margin-bottom:12px;gap:3px; }
 .capture-tab { flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:600;color:var(--text-muted);border:none;background:transparent;cursor:pointer;font-family:'Syne',sans-serif;transition:all .15s; }
 .capture-tab.active { background:var(--surface2);color:var(--text);border:1px solid var(--border2); }
 
-/* ── MANUAL GRID ── */
+/* CAMERA */
+.camera-wrap { position:relative;border-radius:var(--radius);overflow:hidden;background:#000;margin-bottom:10px; }
+.camera-wrap video { width:100%;height:260px;display:block;object-fit:cover; }
+.scan-overlay { position:absolute;inset:0;border:2px solid rgba(0,196,180,0.4);border-radius:var(--radius);pointer-events:none; }
+.scan-frame   { position:absolute;inset:12px;border:1.5px solid rgba(0,196,180,0.5);border-radius:10px;pointer-events:none; }
+.scan-line    { position:absolute;left:10%;right:10%;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scanline 2s linear infinite; }
+@keyframes scanline { 0%{top:20%} 50%{top:75%} 100%{top:20%} }
+.scan-status  { position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);padding:5px 14px;border-radius:20px;font-size:11px;color:var(--accent);white-space:nowrap;border:1px solid rgba(0,196,180,0.25); }
+
+/* MANUAL GRID */
 .manual-grid { display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px; }
 
-/* ── KIT DETAIL PANEL ROWS ── */
-.detail-row  { display:flex; justify-content:space-between; align-items:flex-start; padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; }
-.detail-row:last-child { border-bottom:none; }
-.detail-lbl  { color:var(--text-muted); font-size:12px; flex-shrink:0; padding-right:12px; }
-.detail-val  { color:var(--text); font-weight:500; font-size:12px; font-family:'DM Mono',monospace; text-align:right; word-break:break-all; max-width:60%; }
+/* PREVIEW CARD */
+.preview-card  { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:12px;display:none; }
+.preview-card.show { display:block; }
+.preview-grid  { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
+.preview-title { font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px; }
+.preview-field { background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px; }
+.pf-label { font-size:9px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px; }
+.preview-field input { background:none;border:none;padding:0;font-size:13px;font-family:'DM Mono',monospace;color:var(--text);width:100%;outline:none; }
 
-/* Responsive fine-tuning */
+/* VALIDATION BANNER */
+.validation-banner { padding:10px 13px;border-radius:var(--radius-sm);margin-bottom:10px;font-size:12px;display:none;line-height:1.4; }
+.validation-banner.show    { display:block; }
+.validation-banner.authorized  { background:var(--green-bg);border:1px solid rgba(48,209,88,0.25);color:var(--green); }
+.validation-banner.scanned     { background:var(--accent-bg);border:1px solid rgba(0,196,180,0.2);color:var(--accent); }
+.validation-banner.duplicate   { background:var(--yellow-bg);border:1px solid rgba(255,214,10,0.25);color:var(--yellow); }
+.validation-banner.unauthorized{ background:var(--red-bg);border:1px solid rgba(255,69,58,0.25);color:var(--red); }
+.validation-banner.expired     { background:var(--red-bg);border:1px solid rgba(255,69,58,0.25);color:var(--red); }
+
+/* SCAN LIST */
+.scan-list { margin-top:8px; }
+.scan-item { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;display:flex;align-items:center;gap:10px;margin-bottom:6px; }
+.scan-item.authorized  { border-left:3px solid var(--green); }
+.scan-item.scanned     { border-left:3px solid var(--accent); }
+.scan-item.duplicate   { border-left:3px solid var(--yellow); }
+.scan-item.unauthorized{ border-left:3px solid var(--red); }
+.scan-item.expired     { border-left:3px solid var(--red); }
+.scan-item-status { width:30px;height:30px;border-radius:8px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0; }
+.scan-item-info { flex:1;min-width:0; }
+.scan-item-sn   { font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'DM Mono',monospace; }
+.scan-item-meta { font-size:11px;color:var(--text-muted);margin-top:1px; }
+.scan-item-del  { background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;padding:4px;flex-shrink:0; }
+.status-badge   { font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px; }
+.status-badge.authorized  { background:var(--green-bg);color:var(--green); }
+.status-badge.scanned     { background:var(--accent-bg);color:var(--accent); }
+.status-badge.duplicate   { background:var(--yellow-bg);color:var(--yellow); }
+.status-badge.unauthorized{ background:var(--red-bg);color:var(--red); }
+.status-badge.expired     { background:var(--red-bg);color:var(--red); }
+.status-badge.missing     { background:var(--red-bg);color:var(--red); }
+
+/* SUMMARY TABLE */
+.summary-table { width:100%;border-collapse:collapse;font-size:12px; }
+.summary-table th { text-align:left;padding:8px 10px;font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border); }
+.summary-table td { padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text-muted);vertical-align:middle; }
+.summary-table tr.authorized  td { border-left:3px solid var(--green); }
+.summary-table tr.scanned     td { border-left:3px solid var(--accent); }
+.summary-table tr.duplicate   td { border-left:3px solid var(--yellow); }
+.summary-table tr.unauthorized td { border-left:3px solid var(--red); }
+.summary-table tr.missing     td { border-left:3px solid var(--red);background:rgba(255,69,58,0.03); }
+.missing-count { font-size:12px;font-weight:600;color:var(--red);background:var(--red-bg);border-radius:var(--radius-xs);padding:4px 10px;display:inline-block;margin-bottom:10px; }
+
+/* SETTINGS */
+.settings-section { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px; }
+.settings-section h3 { font-size:14px;font-weight:700;margin-bottom:6px; }
+.settings-section p  { font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.5; }
+
+/* LOADING / TOAST */
+.loading-overlay { position:fixed;inset:0;background:rgba(8,9,14,0.8);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px; }
+.spinner { width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite; }
+.loading-msg { font-size:13px;color:var(--text-muted); }
+@keyframes spin { to { transform:rotate(360deg); } }
+.toast { position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:10px 16px;font-size:13px;color:var(--text);z-index:1000;opacity:0;transition:opacity .2s,transform .2s;white-space:nowrap;max-width:90vw;text-align:center;pointer-events:none; }
+.toast.show { opacity:1;transform:translateX(-50%) translateY(0); }
+
+/* EMPTY STATE / BTN ROW */
+.empty-state { text-align:center;padding:40px 20px;color:var(--text-muted); }
+.empty-icon  { font-size:36px;margin-bottom:10px; }
+.btn-row     { display:flex;gap:8px;margin-bottom:10px; }
+.btn-row .btn{ margin-top:0; }
+
 @media (max-height: 700px) {
-  .header { padding-top: 20px; }
-  .screen-title { font-size: 24px; margin: 14px 0 3px; }
+  .header { padding-top:20px; }
+  .screen-title { font-size:24px;margin:14px 0 3px; }
 }
 </style>
 </head>
 <body>
 <div class="app">
 
-<!-- ═══════════════════════════════════════════════════════
-     SCREEN: HOME
-═══════════════════════════════════════════════════════ -->
+<!-- HOME -->
 <div class="screen active" id="screen-home">
   <div class="header">
-    <div class="logo">
-      <div class="logo-mark">M</div>
-      <div class="logo-text">Med<span>Scan</span></div>
-    </div>
+    <div class="logo"><div class="logo-mark">M</div><div class="logo-text">Med<span>Scan</span></div></div>
     <div class="header-actions">
       <button class="icon-btn" onclick="showScreen('screen-settings')" title="Settings">⚙</button>
     </div>
@@ -766,21 +260,11 @@ html, body {
         <button class="avatar-btn" id="avatar-btn" onclick="openCRAModal()" title="Edit profile">—</button>
       </div>
       <div class="stats-strip" id="home-stats" style="display:none;">
-        <div class="stat-chip">
-          <div class="stat-n" id="stat-protocols">0</div>
-          <div class="stat-l">Protocols</div>
-        </div>
-        <div class="stat-chip">
-          <div class="stat-n" id="stat-sites">0</div>
-          <div class="stat-l">Sites</div>
-        </div>
-        <div class="stat-chip">
-          <div class="stat-n" id="stat-kits">0</div>
-          <div class="stat-l">Kits loaded</div>
-        </div>
+        <div class="stat-chip"><div class="stat-n" id="stat-protocols">0</div><div class="stat-l">Protocols</div></div>
+        <div class="stat-chip"><div class="stat-n" id="stat-sites">0</div><div class="stat-l">Sites</div></div>
+        <div class="stat-chip"><div class="stat-n" id="stat-kits">0</div><div class="stat-l">Kits</div></div>
       </div>
     </div>
-
     <div class="section-label">Tools</div>
     <div class="menu-grid">
       <div class="menu-card featured" onclick="showScreen('screen-setup')">
@@ -792,7 +276,6 @@ html, body {
         <span class="menu-card-arrow">›</span>
       </div>
     </div>
-
     <div id="home-recent-section" style="display:none;">
       <div class="section-label">Last session</div>
       <div id="home-recent-item" class="recent-item" onclick="showScreen('screen-setup')">
@@ -805,51 +288,42 @@ html, body {
       </div>
     </div>
   </div>
-</div><!-- /screen-home -->
+</div>
 
-<!-- CRA Name Modal -->
+<!-- CRA MODAL -->
 <div class="cra-modal" id="cra-modal" style="display:none;">
   <div class="cra-modal-box">
     <div class="cra-modal-title">Your name</div>
     <div class="cra-modal-sub">Used in session headers and scan reports. Stored locally on this device.</div>
-    <div class="field">
-      <label>Full name</label>
-      <input type="text" id="cra-name-input" placeholder="Your full name" autocomplete="name">
-    </div>
+    <div class="field"><label>Full name</label><input type="text" id="cra-name-input" placeholder="Your full name" autocomplete="name"></div>
     <button class="btn btn-primary" onclick="saveCRAName()" style="margin-top:4px;">Save</button>
     <button class="btn btn-secondary" onclick="closeCRAModal()" style="margin-top:6px;">Cancel</button>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════
-     SCREEN: SETTINGS
-═══════════════════════════════════════════════════════ -->
+<!-- SETTINGS -->
 <div class="screen" id="screen-settings">
   <div class="header">
     <div class="logo"><div class="logo-mark">M</div><div class="logo-text">Med<span>Scan</span></div></div>
-    <div class="header-actions">
-      <button class="icon-btn" onclick="history.back ? goBack() : showScreen('screen-home')">✕</button>
-    </div>
+    <div class="header-actions"><button class="icon-btn" onclick="goBack()">✕</button></div>
   </div>
   <div class="content">
     <p class="screen-title">Settings</p>
     <p class="screen-subtitle">Configure your scanning preferences</p>
     <div class="settings-section">
       <h3>🔑 Anthropic API Key</h3>
-      <p>Required only for OCR fallback when QR codes are unreadable. Stored in sessionStorage only — cleared when you close the tab.</p>
+      <p>Required for OCR mode — extracts label fields from a photo. Stored in sessionStorage only (cleared when tab closes).</p>
       <div class="field"><label>API Key</label><input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off"></div>
       <button class="btn btn-primary" onclick="saveApiKey()">Save Key</button>
     </div>
     <div class="settings-section">
       <h3>📋 About MedScan</h3>
-      <p>Version 2.1.0 — Kit Scanning module for CRAs. All data processed locally. No patient data transmitted to external servers (except Claude API for OCR).</p>
+      <p>Version 2.2.0 — Kit Scanning for CRAs. All data processed locally. Patient data never transmitted externally (except Claude API for OCR images).</p>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════
-     SCREEN: SESSION SETUP (Kit Scanning)
-═══════════════════════════════════════════════════════ -->
+<!-- SETUP -->
 <div class="screen" id="screen-setup">
   <div class="header">
     <div class="logo"><div class="logo-mark">M</div><div class="logo-text">Med<span>Scan</span></div></div>
@@ -860,21 +334,19 @@ html, body {
   </div>
   <div class="content">
     <p class="screen-title">New Session</p>
-    <p class="screen-subtitle">Configure this reconciliation visit</p>
+    <p class="screen-subtitle">Configure this visit</p>
     <p class="section-label">Site Information</p>
     <div class="field"><label>Site Name</label><input type="text" id="site-name" placeholder="Site Name"></div>
     <div class="field"><label>Protocol / Study ID</label><input type="text" id="protocol-id" placeholder="Protocol / Study ID"></div>
     <div class="field"><label>CRA Name</label><input type="text" id="cra-name" placeholder="Your full name"></div>
     <div class="field"><label>Visit Date</label><input type="date" id="visit-date"></div>
-
     <p class="section-label" style="margin-top:8px;">Mode</p>
-    <div style="display:flex; gap:8px; margin-bottom:14px;">
-      <button id="mode-reconcile" onclick="setMode('reconcile')" style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:var(--bg); font-family:var(--font-mono); font-size:13px; cursor:pointer; font-weight:600;">✓ Reconciliation</button>
-      <button id="mode-inventory" onclick="setMode('inventory')" style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text-muted); font-family:var(--font-mono); font-size:13px; cursor:pointer;">📦 Free Inventory</button>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button id="mode-reconcile" onclick="setMode('reconcile')" style="flex:1;padding:12px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:var(--bg);font-family:'Syne',sans-serif;font-size:13px;cursor:pointer;font-weight:600;">✓ Reconciliation</button>
+      <button id="mode-inventory" onclick="setMode('inventory')" style="flex:1;padding:12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-family:'Syne',sans-serif;font-size:13px;cursor:pointer;">📦 Free Inventory</button>
     </div>
-
     <div id="iwrs-section">
-      <div class="alert-strip"><span>ℹ</span><span>Upload the IWRS export file (.xlsx or .csv). The system will validate each scanned product in real time.</span></div>
+      <div class="alert-strip"><span>ℹ</span><span>Upload the IWRS export file (.xlsx or .csv) to validate kits in real time.</span></div>
       <div class="upload-zone" id="upload-zone">
         <input type="file" id="iwrs-file" accept=".xlsx,.csv,.xls" onchange="handleIWRSUpload(event)">
         <div class="upload-icon">📂</div>
@@ -883,8 +355,8 @@ html, body {
       </div>
     </div>
     <div id="inventory-section" style="display:none;">
-      <div class="alert-strip" style="background:rgba(0,229,160,0.08); border-color:rgba(0,229,160,0.2); color:var(--green);">
-        <span>📦</span><span>Free Inventory mode — scan and list products freely. Duplicates and expired products are still flagged.</span>
+      <div class="alert-strip" style="background:rgba(48,209,88,0.08);border-color:rgba(48,209,88,0.2);color:var(--green);">
+        <span>📦</span><span>Free Inventory mode — scan and list products freely. Duplicates and expired kits are still flagged.</span>
       </div>
     </div>
     <div style="margin-top:24px;">
@@ -893,9 +365,7 @@ html, body {
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════
-     SCREEN: SCANNING
-═══════════════════════════════════════════════════════ -->
+<!-- SCANNING -->
 <div class="screen" id="screen-scan">
   <div class="header">
     <div class="logo"><div class="logo-mark">M</div><div class="logo-text">Med<span>Scan</span></div></div>
@@ -904,68 +374,72 @@ html, body {
       <button class="icon-btn" onclick="showScreen('screen-settings')" title="Settings">⚙</button>
     </div>
   </div>
-  <div class="session-info-bar" id="session-info-bar">
+  <div class="session-info-bar" id="session-info-bar" style="margin:8px 16px 0;flex-shrink:0;">
     <span><b id="si-site">—</b></span>
     <span>Protocol: <b id="si-protocol">—</b></span>
     <span>Date: <b id="si-date">—</b></span>
     <span>CRA: <b id="si-cra">—</b></span>
   </div>
-  <div class="stats-strip">
-    <div class="stat-chip total"><div class="stat-val" id="stat-total">0</div><div class="stat-lbl">Total</div></div>
-    <div class="stat-chip ok"><div class="stat-val" id="stat-ok">0</div><div class="stat-lbl">Auth</div></div>
-    <div class="stat-chip dup"><div class="stat-val" id="stat-dup">0</div><div class="stat-lbl">Dup</div></div>
-    <div class="stat-chip unauth"><div class="stat-val" id="stat-unauth">0</div><div class="stat-lbl">Unauth</div></div>
-    <div class="stat-chip exp"><div class="stat-val" id="stat-exp">0</div><div class="stat-lbl">Exp</div></div>
+  <div class="stats-strip" style="padding:0 16px;margin:8px 0 0;flex-shrink:0;">
+    <div class="stat-chip"><div class="stat-val" id="stat-total">0</div><div class="stat-lbl">Total</div></div>
+    <div class="stat-chip"><div class="stat-val" id="stat-ok">0</div><div class="stat-lbl" id="lbl-ok">Auth</div></div>
+    <div class="stat-chip"><div class="stat-val" id="stat-dup">0</div><div class="stat-lbl">Dup</div></div>
+    <div class="stat-chip"><div class="stat-val" id="stat-unauth">0</div><div class="stat-lbl" id="lbl-unauth">Unauth</div></div>
+    <div class="stat-chip"><div class="stat-val" id="stat-exp">0</div><div class="stat-lbl">Exp</div></div>
   </div>
-  <div class="progress-wrap"><div class="progress-bar" id="progress-bar"></div></div>
-  <div style="padding:0 20px 0; flex:1; display:flex; flex-direction:column; overflow:hidden;">
-    <div class="capture-tabs" style="margin-top:14px;">
-      <button class="capture-tab active" id="tab-qr" onclick="switchTab('qr')">📷 QR</button>
-      <button class="capture-tab" id="tab-ocr" onclick="switchTab('ocr')">🔍 OCR</button>
-      <button class="capture-tab" id="tab-manual" onclick="switchTab('manual')">✏ Manual</button>
+  <div class="progress-wrap" style="margin:6px 16px;flex-shrink:0;"><div class="progress-bar" id="progress-bar"></div></div>
+  <div style="padding:0 16px;flex:1;display:flex;flex-direction:column;overflow:hidden;">
+    <div class="capture-tabs" style="margin-top:10px;">
+      <button class="capture-tab active" id="tab-qr"     onclick="switchTab('qr')">📷 QR</button>
+      <button class="capture-tab"        id="tab-ocr"    onclick="switchTab('ocr')">🔍 OCR</button>
+      <button class="capture-tab"        id="tab-manual" onclick="switchTab('manual')">✏ Manual</button>
     </div>
+    <!-- QR PANEL -->
     <div id="panel-qr">
       <div class="camera-wrap">
         <video id="video" autoplay playsinline muted></video>
-        <div class="scan-overlay"><div class="scan-frame"><span></span><div class="scan-line"></div></div></div>
+        <div class="scan-overlay"><div class="scan-frame"><div class="scan-line"></div></div></div>
         <div class="scan-status" id="scan-status">Searching for code...</div>
       </div>
     </div>
+    <!-- OCR PANEL -->
     <div id="panel-ocr" style="display:none;">
       <div class="camera-wrap">
         <video id="video-ocr" autoplay playsinline muted></video>
-        <div class="scan-overlay"><div class="scan-frame"><span></span></div></div>
-        <div class="scan-status">Position label · Tap capture</div>
+        <div class="scan-overlay"><div class="scan-frame"></div></div>
+        <div class="scan-status">Position label · Tap Capture</div>
       </div>
-      <button class="btn btn-secondary" style="margin-bottom:12px;" onclick="captureOCR()">📸 Capture & Extract</button>
+      <button class="btn btn-secondary" style="margin-bottom:12px;margin-top:0;" onclick="captureOCR()">📸 Capture &amp; Extract</button>
       <canvas id="canvas-ocr" style="display:none;"></canvas>
     </div>
+    <!-- MANUAL PANEL -->
     <div id="panel-manual" style="display:none;">
       <div class="manual-grid">
         <div class="field" style="margin-bottom:0;"><label>REF</label><input type="text" id="m-ref" placeholder="REF Number" style="text-transform:uppercase;"></div>
         <div class="field" style="margin-bottom:0;"><label>SN</label><input type="text" id="m-sn" placeholder="Serial Number"></div>
         <div class="field" style="margin-bottom:0;"><label>PSU</label><input type="text" id="m-psu" placeholder="PSU Number"></div>
         <div class="field" style="margin-bottom:0;"><label>LOT</label><input type="text" id="m-lot" placeholder="Lot Number"></div>
-        <div class="field" style="margin-bottom:0; grid-column:1/-1;"><label>EXP (MM-YYYY)</label><input type="text" id="m-exp" placeholder="MM-YYYY"></div>
+        <div class="field" style="margin-bottom:0;grid-column:1/-1;"><label>EXP (MM-YYYY)</label><input type="text" id="m-exp" placeholder="MM-YYYY"></div>
       </div>
-      <button class="btn btn-primary" onclick="submitManual()">Add Product</button>
+      <button class="btn btn-primary" style="margin-top:8px;" onclick="submitManual()">Add Kit</button>
     </div>
+    <!-- PREVIEW CARD -->
     <div class="preview-card" id="preview-card">
-      <div class="preview-title">📋 Confirm Extracted Data</div>
+      <div class="preview-title" id="preview-title">📋 Confirm Extracted Data</div>
       <div class="preview-grid">
-        <div class="preview-field"><div class="pf-label">REF</div><input type="text" id="p-ref"></div>
+        <div class="preview-field"><div class="pf-label">REF</div><input type="text" id="p-ref" placeholder="Enter manually"></div>
         <div class="preview-field"><div class="pf-label">SN</div><input type="text" id="p-sn"></div>
         <div class="preview-field"><div class="pf-label">PSU</div><input type="text" id="p-psu"></div>
         <div class="preview-field"><div class="pf-label">LOT</div><input type="text" id="p-lot"></div>
         <div class="preview-field" style="grid-column:1/-1;"><div class="pf-label">EXP</div><input type="text" id="p-exp"></div>
       </div>
-      <div class="btn-row">
+      <div class="btn-row" style="margin-top:10px;">
         <button class="btn btn-secondary" onclick="dismissPreview()">✕ Discard</button>
-        <button class="btn btn-primary" onclick="confirmProduct()">✓ Confirm</button>
+        <button class="btn btn-primary"   onclick="confirmProduct()">✓ Confirm</button>
       </div>
     </div>
     <div class="validation-banner" id="validation-banner"></div>
-    <div style="flex:1; overflow-y:auto; padding-bottom:16px;">
+    <div style="flex:1;overflow-y:auto;padding-bottom:16px;">
       <div class="scan-list" id="scan-list">
         <div class="empty-state"><div class="empty-icon">📦</div><p>No products scanned yet.<br>Point the camera at a label or QR code.</p></div>
       </div>
@@ -973,38 +447,33 @@ html, body {
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════
-     SCREEN: SUMMARY (Scanning)
-═══════════════════════════════════════════════════════ -->
+<!-- SUMMARY -->
 <div class="screen" id="screen-summary">
   <div class="header">
     <div class="logo"><div class="logo-mark">M</div><div class="logo-text">Med<span>Scan</span></div></div>
     <div class="header-actions">
-      <button class="icon-btn" onclick="newSession()" title="New Session">+</button>
+      <button class="icon-btn" onclick="newSession()" title="New">+</button>
       <button class="icon-btn" onclick="showScreen('screen-home')" title="Home">⌂</button>
     </div>
   </div>
-  <div class="content" style="overflow-y:auto; padding-bottom:100px;">
+  <div class="content" style="overflow-y:auto;padding-bottom:100px;">
     <p class="screen-title">Reconciliation<br>Report</p>
     <p class="screen-subtitle" id="sum-subtitle">Session complete</p>
-    <div class="stats-strip" style="padding:0; margin-bottom:20px;">
-      <div class="stat-chip total"><div class="stat-val" id="sum-total">0</div><div class="stat-lbl">Total</div></div>
-      <div class="stat-chip ok"><div class="stat-val" id="sum-ok">0</div><div class="stat-lbl">Auth</div></div>
-      <div class="stat-chip dup"><div class="stat-val" id="sum-dup">0</div><div class="stat-lbl">Dup</div></div>
-      <div class="stat-chip unauth"><div class="stat-val" id="sum-unauth">0</div><div class="stat-lbl">Unauth</div></div>
-      <div class="stat-chip exp"><div class="stat-val" id="sum-exp">0</div><div class="stat-lbl">Exp</div></div>
+    <div class="stats-strip" style="margin-bottom:20px;">
+      <div class="stat-chip"><div class="stat-val" id="sum-total">0</div><div class="stat-lbl">Total</div></div>
+      <div class="stat-chip"><div class="stat-val" id="sum-ok">0</div><div class="stat-lbl">Auth</div></div>
+      <div class="stat-chip"><div class="stat-val" id="sum-dup">0</div><div class="stat-lbl">Dup</div></div>
+      <div class="stat-chip"><div class="stat-val" id="sum-unauth">0</div><div class="stat-lbl">Unauth</div></div>
+      <div class="stat-chip"><div class="stat-val" id="sum-exp">0</div><div class="stat-lbl">Exp</div></div>
     </div>
     <p class="section-label">Scanned Products</p>
-    <div style="overflow-x:auto; margin-bottom:20px; border-radius:var(--radius); border:1px solid var(--border);">
-      <table class="summary-table" id="sum-table">
-        <thead><tr><th>#</th><th>SN</th><th>REF</th><th>LOT</th><th>EXP</th><th>Status</th></tr></thead>
-        <tbody id="sum-tbody"></tbody>
-      </table>
+    <div style="overflow-x:auto;margin-bottom:20px;border-radius:var(--radius);border:1px solid var(--border);">
+      <table class="summary-table"><thead><tr><th>#</th><th>SN</th><th>REF</th><th>LOT</th><th>EXP</th><th>Status</th></tr></thead><tbody id="sum-tbody"></tbody></table>
     </div>
     <div id="missing-section" style="display:none;">
       <p class="section-label">Not Scanned (In IWRS)</p>
       <div class="missing-count" id="missing-count-badge">0 items not returned</div>
-      <div style="overflow-x:auto; margin-bottom:20px; border-radius:var(--radius); border:1px solid var(--border);">
+      <div style="overflow-x:auto;margin-bottom:20px;border-radius:var(--radius);border:1px solid var(--border);">
         <table class="summary-table"><thead><tr><th>SN</th><th>REF</th><th>LOT</th><th>EXP</th><th>Status</th></tr></thead><tbody id="missing-tbody"></tbody></table>
       </div>
     </div>
@@ -1013,34 +482,55 @@ html, body {
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════
-
+<!-- LOADING + TOAST -->
 <div class="loading-overlay" id="loading-overlay">
   <div class="spinner"></div>
   <div class="loading-msg" id="loading-msg">Processing...</div>
 </div>
-
-<!-- ─── TOAST ──────────────────────────────────────────── -->
 <div class="toast" id="toast"></div>
 
-<!-- ═══════════════════════════════════════════════════════
-     SCRIPTS
-═══════════════════════════════════════════════════════ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 <script>
 
-// ════════════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════
-//  HOME SCREEN — CRA name + session stats
-// ════════════════════════════════════════════════════════
+// ═══════════════ STATE ═══════════════
+const APP_VERSION = '2.2.0';
+const state = {
+  session: null, mode: 'reconcile', scanned: [],
+  iwrs: new Map(), iwrsRaw: [],
+  videoStream: null, codeReader: null, ocrStream: null,
+  activeTab: 'qr', scanning: false, prevScreen: 'screen-home',
+  auditLog: []
+};
+
+function auditRecord(action, detail='') {
+  state.auditLog.push({ ts: new Date().toISOString(), action, detail: String(detail).slice(0,200) });
+}
+
+// ═══════════════ INIT ═══════════════
+document.addEventListener('DOMContentLoaded', () => {
+  initHome();
+  document.getElementById('visit-date').valueAsDate = new Date();
+  const savedKey = sessionStorage.getItem('anthropic_key');
+  if (savedKey) document.getElementById('api-key-input').value = savedKey;
+  ['site-name','cra-name','visit-date'].forEach(id =>
+    document.getElementById(id).addEventListener('input', checkSetupReady));
+  setMode('reconcile');
+
+  // Drag & drop for IWRS
+  const zone = document.getElementById('upload-zone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if(f) handleIWRSUpload({target:{files:[f]}}); });
+});
+
+// ═══════════════ HOME ═══════════════
 function initHome() {
   const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const now = new Date();
   const dateEl = document.getElementById('home-date');
   if (dateEl) dateEl.textContent = days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()];
-
   const name = localStorage.getItem('medscan_cra_name') || '';
   const titleEl = document.getElementById('home-title');
   const avatarEl = document.getElementById('avatar-btn');
@@ -1049,145 +539,65 @@ function initHome() {
     titleEl.innerHTML = 'Hi, <span class="name-accent">' + firstName + '</span>';
     if (avatarEl) {
       const parts = name.trim().split(' ');
-      const initials = parts.length >= 2
-        ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
-        : parts[0].slice(0,2).toUpperCase();
-      avatarEl.textContent = initials;
+      avatarEl.textContent = parts.length >= 2 ? (parts[0][0]+parts[parts.length-1][0]).toUpperCase() : parts[0].slice(0,2).toUpperCase();
     }
   } else {
     if (titleEl) titleEl.innerHTML = 'CRA <span class="name-accent">Toolkit</span>';
     if (avatarEl) avatarEl.textContent = '?';
   }
-
   const sessData = sessionStorage.getItem('medscan_session_stats');
   if (sessData) {
     try {
       const s = JSON.parse(sessData);
       const statsEl = document.getElementById('home-stats');
-      if (statsEl && (s.kits > 0)) {
+      if (statsEl && s.kits > 0) {
         statsEl.style.display = 'flex';
         document.getElementById('stat-protocols').textContent = s.protocols || 0;
         document.getElementById('stat-sites').textContent = s.sites || 0;
         document.getElementById('stat-kits').textContent = s.kits || 0;
       }
       if (s.lastProtocol) {
-        const recentSection = document.getElementById('home-recent-section');
-        const recentTitle   = document.getElementById('recent-title');
-        const recentSub     = document.getElementById('recent-sub');
-        if (recentSection) recentSection.style.display = 'block';
-        if (recentTitle) recentTitle.textContent = [s.lastProtocol, s.lastSite, s.lastSiteName].filter(Boolean).join(' · ');
-        if (recentSub) recentSub.textContent = (s.lastKits || 0) + ' kits · ' + (s.lastTime || '');
+        document.getElementById('home-recent-section').style.display = 'block';
+        document.getElementById('recent-title').textContent = [s.lastProtocol, s.lastSite].filter(Boolean).join(' · ');
+        document.getElementById('recent-sub').textContent = (s.lastKits||0) + ' kits · ' + (s.lastTime||'');
       }
     } catch(e) {}
   }
 }
 
 function openCRAModal() {
-  const modal = document.getElementById('cra-modal');
-  if (!modal) return;
   const input = document.getElementById('cra-name-input');
   if (input) input.value = localStorage.getItem('medscan_cra_name') || '';
-  modal.style.display = 'flex';
-  setTimeout(() => { if (input) input.focus(); }, 100);
+  document.getElementById('cra-modal').style.display = 'flex';
+  setTimeout(() => { if(input) input.focus(); }, 100);
 }
-
-function closeCRAModal() {
-  const modal = document.getElementById('cra-modal');
-  if (modal) modal.style.display = 'none';
-}
-
+function closeCRAModal() { document.getElementById('cra-modal').style.display = 'none'; }
 function saveCRAName() {
   const input = document.getElementById('cra-name-input');
-  if (!input) return;
   const name = input.value.trim();
   if (!name) { input.style.borderColor = 'var(--red)'; return; }
   localStorage.setItem('medscan_cra_name', name);
-  closeCRAModal();
-  initHome();
-  toast('Name saved');
+  closeCRAModal(); initHome(); toast('Name saved');
 }
 
-function updateSessionStats(protocol, siteNum, siteName, kitsCount) {
+function updateSessionStats(protocol, siteNum, kitsCount) {
   try {
-    let s = {};
-    try { s = JSON.parse(sessionStorage.getItem('medscan_session_stats') || '{}'); } catch(e) {}
-    const protocols = new Set(JSON.parse(s._protocolSet || '[]'));
-    const sites = new Set(JSON.parse(s._siteSet || '[]'));
+    let s = {}; try { s = JSON.parse(sessionStorage.getItem('medscan_session_stats')||'{}'); } catch(e) {}
+    const protocols = new Set(JSON.parse(s._protocolSet||'[]'));
+    const sites = new Set(JSON.parse(s._siteSet||'[]'));
     if (protocol) protocols.add(protocol);
-    if (siteNum)  sites.add(siteNum);
-    s.protocols = protocols.size;
-    s.sites = sites.size;
-    s.kits = (s.kits || 0) + kitsCount;
-    s._protocolSet = JSON.stringify([...protocols]);
-    s._siteSet = JSON.stringify([...sites]);
-    s.lastProtocol = protocol || s.lastProtocol;
-    s.lastSite = siteNum || s.lastSite;
-    s.lastSiteName = siteName || s.lastSiteName;
+    if (siteNum) sites.add(siteNum);
+    s.protocols = protocols.size; s.sites = sites.size;
+    s.kits = (s.kits||0) + kitsCount;
+    s._protocolSet = JSON.stringify([...protocols]); s._siteSet = JSON.stringify([...sites]);
+    s.lastProtocol = protocol||s.lastProtocol; s.lastSite = siteNum||s.lastSite;
     s.lastKits = kitsCount;
-    const now = new Date();
-    s.lastTime = now.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
+    s.lastTime = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
     sessionStorage.setItem('medscan_session_stats', JSON.stringify(s));
   } catch(e) {}
 }
 
-// ════════════════════════════════════════════════════════
-//  APP VERSION
-// ════════════════════════════════════════════════════════
-const APP_VERSION = '2.1.0';
-const APP_BUILD_DATE = '2026-03-13';
-
-// ════════════════════════════════════════════════════════
-//  GLOBAL STATE
-// ════════════════════════════════════════════════════════
-const state = {
-  session: null,
-  mode: 'reconcile',
-  scanned: [],
-  iwrs: new Map(),
-  iwrsRaw: [],
-  videoStream: null,
-  codeReader: null,
-  ocrStream: null,
-  activeTab: 'qr',
-  scanning: false,
-  prevScreen: 'screen-home',
-
-  auditLog: [],   // [{ts, action, detail}]
-
-};
-
-// ────────────────────────────────────────────────────────
-//  AUDIT TRAIL HELPERS
-// ────────────────────────────────────────────────────────
-function auditRecord(action, detail = '') {
-  state.auditLog.push({
-    ts: new Date().toISOString(),
-    action,
-    detail: String(detail).slice(0, 200)
-  });
-}
-function auditGetRows() {
-  const header = ['Timestamp (UTC)', 'Action', 'Detail'];
-  const rows = state.auditLog.map(e => [e.ts, e.action, e.detail]);
-  return [header, ...rows];
-}
-
-// ════════════════════════════════════════════════════════
-//  INIT
-// ════════════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
-  initHome();
-  document.getElementById('visit-date').valueAsDate = new Date();
-  const savedKey = sessionStorage.getItem('anthropic_key');
-  if (savedKey) document.getElementById('api-key-input').value = savedKey;
-  ['site-name', 'cra-name', 'visit-date'].forEach(id =>
-    document.getElementById(id).addEventListener('input', checkSetupReady));
-  setMode('reconcile');
-});
-
-// ════════════════════════════════════════════════════════
-//  NAVIGATION
-// ════════════════════════════════════════════════════════
+// ═══════════════ NAVIGATION ═══════════════
 function showScreen(id) {
   if (id === 'screen-home') initHome();
   const prev = document.querySelector('.screen.active');
@@ -1197,47 +607,38 @@ function showScreen(id) {
   if (id !== 'screen-scan') stopCamera();
   if (id === 'screen-scan' && state.activeTab === 'qr') startQRCamera();
 }
-
 function goBack() { showScreen(state.prevScreen || 'screen-home'); }
 
-// ════════════════════════════════════════════════════════
-//  SETTINGS
-// ════════════════════════════════════════════════════════
+// ═══════════════ SETTINGS ═══════════════
 function saveApiKey() {
   const key = document.getElementById('api-key-input').value.trim();
   if (!key) { toast('Please enter an API key'); return; }
   sessionStorage.setItem('anthropic_key', key);
-  toast('✓ API key saved for this session');
-  // Go back to scan if active, otherwise home
-  const target = state.prevScreen === 'screen-scan' ? 'screen-scan' : 'screen-home';
-  showScreen(target);
+  toast('✓ API key saved');
+  goBack();
 }
 
-// ════════════════════════════════════════════════════════
-//  KIT SCANNING — SETUP
-// ════════════════════════════════════════════════════════
+// ═══════════════ SETUP ═══════════════
 function setMode(mode) {
   state.mode = mode;
   const isRec = mode === 'reconcile';
   const btnRec = document.getElementById('mode-reconcile');
   const btnInv = document.getElementById('mode-inventory');
-  btnRec.style.background    = isRec ? 'var(--accent)' : 'var(--surface)';
-  btnRec.style.color         = isRec ? 'var(--bg)' : 'var(--text-muted)';
-  btnRec.style.borderColor   = isRec ? 'var(--accent)' : 'var(--border)';
-  btnRec.style.fontWeight    = isRec ? '600' : 'normal';
-  btnInv.style.background    = !isRec ? 'var(--green)' : 'var(--surface)';
-  btnInv.style.color         = !isRec ? 'var(--bg)' : 'var(--text-muted)';
-  btnInv.style.borderColor   = !isRec ? 'var(--green)' : 'var(--border)';
-  btnInv.style.fontWeight    = !isRec ? '600' : 'normal';
-  document.getElementById('iwrs-section').style.display      = isRec ? 'block' : 'none';
-  document.getElementById('inventory-section').style.display = isRec ? 'none'  : 'block';
+  btnRec.style.cssText = isRec
+    ? 'flex:1;padding:12px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:var(--bg);font-family:"Syne",sans-serif;font-size:13px;cursor:pointer;font-weight:600;'
+    : 'flex:1;padding:12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-family:"Syne",sans-serif;font-size:13px;cursor:pointer;';
+  btnInv.style.cssText = !isRec
+    ? 'flex:1;padding:12px;border-radius:8px;border:1px solid var(--green);background:var(--green);color:var(--bg);font-family:"Syne",sans-serif;font-size:13px;cursor:pointer;font-weight:600;'
+    : 'flex:1;padding:12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-family:"Syne",sans-serif;font-size:13px;cursor:pointer;';
+  document.getElementById('iwrs-section').style.display = isRec ? 'block' : 'none';
+  document.getElementById('inventory-section').style.display = isRec ? 'none' : 'block';
   checkSetupReady();
 }
 
 function checkSetupReady() {
-  const site  = document.getElementById('site-name').value.trim();
-  const cra   = document.getElementById('cra-name').value.trim();
-  const date  = document.getElementById('visit-date').value;
+  const site = document.getElementById('site-name').value.trim();
+  const cra  = document.getElementById('cra-name').value.trim();
+  const date = document.getElementById('visit-date').value;
   const ready = site && cra && date && (state.mode === 'inventory' || state.iwrs.size > 0);
   document.getElementById('start-scan-btn').disabled = !ready;
 }
@@ -1251,88 +652,62 @@ async function handleIWRSUpload(event) {
     if (file.name.toLowerCase().endsWith('.csv')) {
       rows = parseCSV(new TextDecoder().decode(data));
     } else {
-      const wb = XLSX.read(data, { type: 'array' });
-      rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+      const wb = XLSX.read(data, {type:'array'});
+      rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
     }
     state.iwrs.clear(); state.iwrsRaw = rows;
-
-    const SN_ALIASES  = ['SN','sn','Serial Number','SerialNumber','serial_number',
-                         'Kit Number(s) Assigned','Kit Number','KitNumber','kit_number'];
-    const LOT_ALIASES = ['LOT','lot','Lot Number','LotNumber','lot_number',
-                         'Lot Number(s) Assigned','Lot Number(s)'];
-
-    let snKey = null, lotKey = null;
+    const SN_ALIASES = ['SN','sn','Serial Number','SerialNumber','Kit Number(s) Assigned','Kit Number','KitNumber'];
+    const LOT_ALIASES = ['LOT','lot','Lot Number','LotNumber','Lot Number(s) Assigned','Lot Number(s)'];
+    let snKey=null, lotKey=null;
     if (rows.length > 0) {
       const firstRow = rows[0];
-      snKey  = SN_ALIASES.find(k => k in firstRow)
-               || Object.keys(firstRow).find(k => k.toLowerCase().includes('kit') && k.toLowerCase().includes('assign'))
-               || Object.keys(firstRow).find(k => k.toLowerCase().includes('kit'))
-               || Object.keys(firstRow)[1];
-      lotKey = LOT_ALIASES.find(k => k in firstRow)
-               || Object.keys(firstRow).find(k => k.toLowerCase().includes('lot') && k.toLowerCase().includes('assign'))
-               || Object.keys(firstRow).find(k => k.toLowerCase().includes('lot'));
+      snKey  = SN_ALIASES.find(k=>k in firstRow) || Object.keys(firstRow).find(k=>k.toLowerCase().includes('kit')&&k.toLowerCase().includes('assign')) || Object.keys(firstRow).find(k=>k.toLowerCase().includes('kit')) || Object.keys(firstRow)[1];
+      lotKey = LOT_ALIASES.find(k=>k in firstRow) || Object.keys(firstRow).find(k=>k.toLowerCase().includes('lot')&&k.toLowerCase().includes('assign')) || Object.keys(firstRow).find(k=>k.toLowerCase().includes('lot'));
     }
-    state.iwrsSnKey  = snKey;
-    state.iwrsLotKey = lotKey;
-
-    rows.forEach(row => {
-      const sn = String(row[snKey]||'').trim();
-      if (sn && sn !== 'n/a') state.iwrs.set(sn, row);
-    });
+    state.iwrsSnKey = snKey; state.iwrsLotKey = lotKey;
+    rows.forEach(row => { const sn=String(row[snKey]||'').trim(); if(sn&&sn!=='n/a') state.iwrs.set(sn,row); });
     hideLoading();
     if (state.iwrs.size === 0) { toast('⚠ No SN data found. Check column headers.'); return; }
-    document.getElementById('upload-zone').classList.add('loaded');
-    document.getElementById('upload-label').textContent = `✅ ${file.name}`;
-    document.getElementById('upload-hint').textContent  = `${state.iwrs.size} kits loaded · SN ← "${state.iwrsSnKey}"${state.iwrsLotKey ? ' · LOT ← "' + state.iwrsLotKey + '"' : ''}`;
+    document.getElementById('upload-label').textContent = '✅ ' + file.name;
+    document.getElementById('upload-hint').textContent = state.iwrs.size + ' kits loaded · SN ← "' + snKey + '"';
     checkSetupReady();
-    toast(`✓ ${state.iwrs.size} kits loaded — SN: "${state.iwrsSnKey}"`);
-  } catch (err) { hideLoading(); toast('Error: ' + err.message); }
+    toast('✓ ' + state.iwrs.size + ' kits loaded');
+  } catch(err) { hideLoading(); toast('Error: ' + err.message); }
 }
 
 function parseCSV(text) {
   const lines = text.trim().split('\n'); if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,''));
-  return lines.slice(1).map(line => {
-    const vals = line.split(',').map(v => v.trim().replace(/"/g,''));
-    const obj = {}; headers.forEach((h,i) => obj[h] = vals[i]||''); return obj;
-  });
+  const headers = lines[0].split(',').map(h=>h.trim().replace(/"/g,''));
+  return lines.slice(1).map(line => { const vals=line.split(',').map(v=>v.trim().replace(/"/g,'')); const obj={}; headers.forEach((h,i)=>obj[h]=vals[i]||''); return obj; });
 }
 
-// ════════════════════════════════════════════════════════
-//  KIT SCANNING — SESSION
-// ════════════════════════════════════════════════════════
+// ═══════════════ SESSION ═══════════════
 function startSession() {
   const site = document.getElementById('site-name').value.trim();
   const protocol = document.getElementById('protocol-id').value.trim();
   const cra  = document.getElementById('cra-name').value.trim();
   const date = document.getElementById('visit-date').value;
-  state.session = { site, protocol, cra, date, mode: state.mode };
-  state.scanned = [];
-  state.auditLog = []; // reset log for new session
-  auditRecord('SESSION_START', `CRA: ${cra} | Protocol: ${protocol} | Site: ${site} | Date: ${date} | Mode: ${state.mode} | App: v${APP_VERSION}`);
-  document.getElementById('si-site').textContent     = site;
+  state.session = {site, protocol, cra, date, mode:state.mode};
+  state.scanned = []; state.auditLog = [];
+  auditRecord('SESSION_START', `CRA:${cra}|Protocol:${protocol}|Site:${site}|Date:${date}|Mode:${state.mode}|v${APP_VERSION}`);
+  document.getElementById('si-site').textContent = site;
   document.getElementById('si-protocol').textContent = protocol || '—';
-  document.getElementById('si-date').textContent     = date;
-  document.getElementById('si-cra').textContent      = cra;
+  document.getElementById('si-date').textContent = date;
+  document.getElementById('si-cra').textContent = cra;
   updateStats(); renderScanList(); showScreen('screen-scan');
 }
-
 function endSession() { stopCamera(); buildSummary(); showScreen('screen-summary'); }
-
 function newSession() {
-  state.scanned = []; state.iwrs.clear(); state.iwrsRaw = []; state.session = null;
+  state.scanned=[]; state.iwrs.clear(); state.iwrsRaw=[]; state.session=null;
   setMode('reconcile');
-  document.getElementById('upload-zone').classList.remove('loaded');
-  document.getElementById('upload-label').textContent = 'Upload IWRS File';
-  document.getElementById('upload-hint').textContent  = 'Tap to select · .xlsx or .csv';
-  document.getElementById('iwrs-file').value = '';
-  document.getElementById('start-scan-btn').disabled = true;
+  document.getElementById('upload-label').textContent='Upload IWRS File';
+  document.getElementById('upload-hint').textContent='Tap to select · .xlsx or .csv';
+  document.getElementById('iwrs-file').value='';
+  document.getElementById('start-scan-btn').disabled=true;
   showScreen('screen-setup');
 }
 
-// ════════════════════════════════════════════════════════
-//  CAMERA / QR
-// ════════════════════════════════════════════════════════
+// ═══════════════ CAMERA / QR ═══════════════
 async function startQRCamera() {
   if (state.scanning) return;
   const video = document.getElementById('video');
@@ -1341,8 +716,8 @@ async function startQRCamera() {
   try {
     if (state.videoStream) { state.videoStream.getTracks().forEach(t=>t.stop()); state.videoStream=null; }
     let stream;
-    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } }); }
-    catch(e) { stream = await navigator.mediaDevices.getUserMedia({ video: true }); }
+    try { stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}}); }
+    catch(e) { stream = await navigator.mediaDevices.getUserMedia({video:true}); }
     state.videoStream = stream; video.srcObject = stream;
     await new Promise((res,rej) => { video.onloadedmetadata=res; video.onerror=rej; setTimeout(rej,5000); });
     await video.play();
@@ -1351,9 +726,8 @@ async function startQRCamera() {
     state.codeReader = codeReader;
     codeReader.decodeFromStream(stream, video, (result, err) => {
       if (result) handleQRResult(result.getText());
-      // err is normal when no code in frame — ignore NotFoundException
     });
-  } catch (err) {
+  } catch(err) {
     state.scanning = false;
     let msg = 'Camera unavailable';
     if (err.name==='NotAllowedError') msg='Camera permission denied';
@@ -1376,80 +750,59 @@ function handleQRResult(text) {
   lastQRText=text; lastQRTime=now;
   document.getElementById('scan-status').textContent='✓ Code detected!';
   setTimeout(() => { const el=document.getElementById('scan-status'); if(el) el.textContent='Searching for code...'; }, 1500);
-  // DEBUG: show raw text to diagnose REF parsing (remove after fix)
-  const debugText = text.replace(/[\x00-\x1f]/g, c => '['+c.charCodeAt(0)+']');
-  console.log('[MedScan] Raw scan:', debugText);
-  toast('RAW: ' + debugText.slice(0,60), 5000);
-  showPreview(parseQRData(text)); vibrate();
+  const parsed = parseQRData(text);
+  if (parsed._gtinOnly) return; // GTIN-only barcode — toast already shown, skip preview
+  showPreview(parsed); vibrate();
 }
 
+// ═══════════════ PARSING ═══════════════
 function parseQRData(text) {
-  // 1. Try JSON
+  // 1. JSON
   try { return normalize(JSON.parse(text)); } catch {}
 
-  // 2. Run both parsers and merge results
-  const textResult = parseTextLabel(text);
-  const gs1Result  = parseGS1(text);
+  // 2. Bare GTIN: pure 8, 12, 13, or 14-digit number
+  // This Sanofi DataMatrix encodes ONLY the GTIN product code.
+  // SN / LOT / EXP / REF are printed text only — use OCR mode for those.
+  if (/^\d{8,14}$/.test(text.trim())) {
+    toast('⚠ Este código solo contiene el GTIN del producto.\nUsá modo OCR para capturar SN, LOT, EXP y REF.', 5000);
+    return { _gtinOnly: true, sn: '' };  // empty product — user will see warning fields
+  }
 
-  // GS1 is authoritative for SN / LOT / EXP (binary encoded, no ambiguity)
-  // Text parser is needed for REF (study ID printed on label, not a GS1 AI)
-  const merged = {};
-  merged.sn  = gs1Result.sn  || textResult.sn  || undefined;
-  merged.lot = gs1Result.lot || textResult.lot || undefined;
-  merged.exp = gs1Result.exp || textResult.exp || undefined;
-  merged.psu = gs1Result.psu || textResult.psu || undefined;
-  merged.ref = textResult.ref || undefined;  // GTIN ≠ study REF — never use gs1 GTIN here
+  // 3. GS1 binary with AI separators
+  const gs1 = parseGS1(text);
+  if (gs1.sn || gs1.lot) return gs1;
 
-  // If GS1 found nothing useful, use pure text result
-  if (!merged.sn && !merged.lot) return textResult;
-  return merged;
+  // 4. Text-label format (e.g. "REF:EFC17504 SN:0044145 ...")
+  return parseTextLabel(text);
 }
 
 function parseTextLabel(text) {
   const product = {};
-
-  // Normalize separators: GS1 FNC1, control chars → space
+  // Normalize GS1 separators to spaces
   const t = text.replace(/[\x1d\x04\u001d\u001D]/g, ' ');
-
-  // Field names we look for (order matters for lookahead boundary)
+  // Each field grabs everything up to the next known field label
   const FIELDS = ['REF','SN','PSU','LOT','EXP'];
-  const boundary = FIELDS.join(':|') + ':|$';
-
+  const boundary = '(?=' + FIELDS.join('[:\\s=]|') + '[:\\s=]|$)';
   FIELDS.forEach(field => {
-    // Capture everything after "FIELD:" up to the next field label or end of string
-    const re = new RegExp(
-      field + '[:\\s=]+([\\s\\S]+?)(?=' + boundary + ')',
-      'i'
-    );
+    const re = new RegExp(field + '[:\\s=]+([\\s\\S]+?)' + boundary, 'i');
     const m = t.match(re);
     if (!m) return;
-
     let val = m[1].trim();
-
     if (field === 'EXP') {
-      // Normalize: remove spaces, convert slashes
       val = val.replace(/\s+/g,'').replace(/\//g,'-');
-      // MMYYYY or YYYYMM (6 digits no separator) → MM-YYYY
       if (/^\d{6}$/.test(val)) val = val.substr(0,2)+'-'+val.substr(2,4);
     } else {
-      // Remove internal spaces (e.g. "EFC 17504" → "EFC17504")
-      val = val.replace(/\s+/g,'');
+      val = val.replace(/\s+/g,''); // "EFC 17504" → "EFC17504"
     }
-
     if (val) product[field.toLowerCase()] = val;
   });
-
-  // Last-resort: if nothing matched, treat entire string as SN
-  if (!product.ref && !product.sn) {
-    product.sn = text.trim().replace(/\s+/g,'');
-  }
-
+  if (!product.ref && !product.sn) product.sn = text.trim().replace(/\s+/g,'');
   return product;
 }
 
 function parseGS1(text) {
   const result = {}, SEP = '\x1d';
-  let data = text.replace(/\u001d|\u001D|\u0004|□/g, SEP).replace(/\x1d/g, SEP);
+  let data = text.replace(/\u001d|\u001D|\u0004|□/g, SEP);
   const FIXED2 = {'01':14,'02':14,'17':6,'11':6,'13':6,'15':6,'16':6};
   const VAR2   = {'10':'lot','21':'sn','22':'psu'};
   const VAR3   = {'240':'ref','241':'ref','250':'sn','251':'ref'};
@@ -1457,30 +810,28 @@ function parseGS1(text) {
   const known3 = new Set(Object.keys(VAR3));
   function varEnd(pos) {
     let best = data.length;
-    const sepIdx = data.indexOf(SEP, pos);
-    if (sepIdx !== -1 && sepIdx < best) best = sepIdx;
-    for (let j = pos + 1; j < best; j++) {
-      if (known3.has(data.substr(j,3)) || known2.has(data.substr(j,2))) { best = j; break; }
-    }
+    const si = data.indexOf(SEP, pos); if (si !== -1 && si < best) best = si;
+    for (let j=pos+1; j<best; j++) { if (known3.has(data.substr(j,3))||known2.has(data.substr(j,2))) { best=j; break; } }
     return best;
   }
   let i = 0;
   while (i < data.length) {
-    if (data[i] === SEP) { i++; continue; }
-    const ai3 = data.substr(i,3), ai2 = data.substr(i,2);
+    if (data[i]===SEP) { i++; continue; }
+    const ai3=data.substr(i,3), ai2=data.substr(i,2);
     if (known3.has(ai3)) {
-      i += 3; const end = varEnd(i); const val = data.substring(i,end).trim();
-      if (val) result[VAR3[ai3]] = val; i = (data[end]===SEP) ? end+1 : end;
-    } else if (FIXED2[ai2] !== undefined) {
-      const len = FIXED2[ai2], val = data.substr(i+2, len);
-      if (ai2==='17'||ai2==='15'||ai2==='16') {
-        if (val.length===6) { const yy=val.substr(0,2),mm=val.substr(2,2); result.exp=mm+'-'+(parseInt(yy)>50?'19':'20')+yy; }
+      i+=3; const end=varEnd(i); const val=data.substring(i,end).trim();
+      if (val) result[VAR3[ai3]]=val; i=(data[end]===SEP)?end+1:end;
+    } else if (FIXED2[ai2]!==undefined) {
+      const len=FIXED2[ai2], val=data.substr(i+2,len);
+      if ((ai2==='17'||ai2==='15'||ai2==='16') && val.length===6) {
+        const yy=val.substr(0,2), mm=val.substr(2,2);
+        result.exp = mm+'-'+(parseInt(yy)>50?'19':'20')+yy;
       }
-      // AI 01 = GTIN, deliberately NOT mapped to REF
-      i += 2+len;
-    } else if (VAR2[ai2] !== undefined) {
-      i += 2; const end = varEnd(i); const val = data.substring(i,end).trim();
-      if (val) result[VAR2[ai2]] = val; i = (data[end]===SEP) ? end+1 : end;
+      // AI 01 = GTIN — NOT the study REF
+      i+=2+len;
+    } else if (VAR2[ai2]!==undefined) {
+      i+=2; const end=varEnd(i); const val=data.substring(i,end).trim();
+      if (val) result[VAR2[ai2]]=val; i=(data[end]===SEP)?end+1:end;
     } else { i++; }
   }
   return result;
@@ -1489,203 +840,310 @@ function parseGS1(text) {
 function normalize(obj) {
   const map={ref:['REF','ref','reference'],sn:['SN','sn','serial','serialNumber'],psu:['PSU','psu'],lot:['LOT','lot','Lot'],exp:['EXP','exp','expiry','Expiry']};
   const result={};
-  Object.entries(map).forEach(([key,aliases]) => { for(const a of aliases) if(obj[a]!==undefined){result[key]=String(obj[a]);break;} });
+  Object.entries(map).forEach(([key,aliases])=>{ for(const a of aliases) if(obj[a]!==undefined){result[key]=String(obj[a]);break;} });
   return result;
 }
 
+// ═══════════════ OCR ═══════════════
 async function startOCRCamera() {
-  const video=document.getElementById('video-ocr');
+  const video = document.getElementById('video-ocr');
   try {
-    if(state.ocrStream){state.ocrStream.getTracks().forEach(t=>t.stop());state.ocrStream=null;}
+    if (state.ocrStream) { state.ocrStream.getTracks().forEach(t=>t.stop()); state.ocrStream=null; }
     let stream;
-    try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}});}
-    catch(e){stream=await navigator.mediaDevices.getUserMedia({video:true});}
-    state.ocrStream=stream; video.srcObject=stream; await video.play();
-  } catch(err){toast('Camera error: '+(err.name==='NotAllowedError'?'Permission denied':err.message));}
+    try { stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}}); }
+    catch(e) { stream = await navigator.mediaDevices.getUserMedia({video:true}); }
+    state.ocrStream = stream; video.srcObject = stream;
+    await video.play();
+  } catch(err) { toast('Camera error: ' + (err.name==='NotAllowedError'?'Permission denied':err.message)); }
 }
 
 async function captureOCR() {
-  const video=document.getElementById('video-ocr'),canvas=document.getElementById('canvas-ocr');
-  canvas.width=video.videoWidth||640; canvas.height=video.videoHeight||480;
-  canvas.getContext('2d').drawImage(video,0,0);
-  const imageData=canvas.toDataURL('image/jpeg',0.9).split(',')[1];
-  const apiKey=sessionStorage.getItem('anthropic_key');
-  if(!apiKey){toast('API key required. Go to Settings.');return;}
+  const video  = document.getElementById('video-ocr');
+  const canvas = document.getElementById('canvas-ocr');
+  if (!state.ocrStream || video.readyState < 2) { toast('Camera not ready'); return; }
+  canvas.width  = video.videoWidth  || 1280;
+  canvas.height = video.videoHeight || 720;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  const imageData = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+  const apiKey = sessionStorage.getItem('anthropic_key');
+  if (!apiKey) { toast('API key required — go to Settings first'); return; }
   showLoading('Extracting label data via AI...');
   try {
-    const response=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:300,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:imageData}},{type:'text',text:'Extract the following fields from this medication label image and return ONLY a valid JSON object with no extra text: {"ref":"","sn":"","psu":"","lot":"","exp":""}. If a field is not visible, use null. EXP format: MM-YYYY.'}]}]})
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-5',
+        max_tokens: 300,
+        messages: [{
+          role: 'user',
+          content: [{
+            type: 'image',
+            source: { type: 'base64', media_type: 'image/jpeg', data: imageData }
+          }, {
+            type: 'text',
+            text: 'This is a pharmaceutical kit label. Extract these fields and return ONLY a valid JSON object, no extra text:\n{"ref":"","sn":"","psu":"","lot":"","exp":""}\nREF = study reference number (e.g. EFC17504). SN = serial number. PSU = packaging unit. LOT = lot number. EXP = expiry date in MM-YYYY format. Use null for any field not visible.'
+          }]
+        }]
+      })
     });
-    const data=await response.json(); hideLoading();
-    if(!response.ok){toast('API Error: '+(data.error?.message||'Unknown'));return;}
-    if(data.content&&data.content[0]){
-      let text=data.content[0].text.trim().replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
-      showPreview(normalize(JSON.parse(text))); vibrate();
-    }
-  } catch(err){hideLoading();toast('OCR error: '+err.message);}
+    const data = await response.json();
+    hideLoading();
+    if (!response.ok) { toast('API Error: ' + (data.error?.message || response.status)); return; }
+    const rawText = data.content?.[0]?.text || '';
+    const clean = rawText.trim().replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+    try {
+      showPreview(normalize(JSON.parse(clean))); vibrate();
+    } catch(e) { toast('Could not parse AI response'); console.error('OCR parse error:', clean); }
+  } catch(err) { hideLoading(); toast('OCR error: ' + err.message); }
 }
 
 function switchTab(tab) {
-  state.activeTab=tab;
-  ['qr','ocr','manual'].forEach(t=>{
-    document.getElementById(`tab-${t}`).classList.toggle('active',t===tab);
-    document.getElementById(`panel-${t}`).style.display=t===tab?'block':'none';
+  state.activeTab = tab;
+  ['qr','ocr','manual'].forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+    document.getElementById('panel-'+t).style.display = t===tab ? 'block' : 'none';
   });
-  if(tab==='qr'){if(state.ocrStream){state.ocrStream.getTracks().forEach(t=>t.stop());state.ocrStream=null;}startQRCamera();}
-  else if(tab==='ocr'){if(state.codeReader){try{state.codeReader.reset();}catch(e){}state.codeReader=null;}if(state.videoStream){state.videoStream.getTracks().forEach(t=>t.stop());state.videoStream=null;}state.scanning=false;startOCRCamera();}
-  else{stopCamera();}
+  if (tab==='qr') {
+    if (state.ocrStream) { state.ocrStream.getTracks().forEach(t=>t.stop()); state.ocrStream=null; }
+    startQRCamera();
+  } else if (tab==='ocr') {
+    if (state.codeReader) { try{state.codeReader.reset();}catch(e){} state.codeReader=null; }
+    if (state.videoStream) { state.videoStream.getTracks().forEach(t=>t.stop()); state.videoStream=null; }
+    state.scanning = false;
+    startOCRCamera();
+  } else {
+    stopCamera();
+  }
   dismissPreview();
 }
 
+// ═══════════════ PREVIEW ═══════════════
 function showPreview(product) {
-  ['ref','sn','psu','lot','exp'].forEach(f=>document.getElementById('p-'+f).value=product[f]||'');
-  const missing=['p-ref','p-sn','p-exp'].filter(id=>!document.getElementById(id).value);
-  missing.forEach(id=>{const el=document.getElementById(id);el.style.borderBottom='2px solid var(--yellow)';el.style.color='var(--yellow)';});
-  const card=document.getElementById('preview-card');
-  card.classList.add('show');
-  const title=card.querySelector('.preview-title');
-  const missingNames=[];
-  if(!product.ref) missingNames.push('REF');
-  if(!product.sn) missingNames.push('SN');
-  if(!product.exp) missingNames.push('EXP');
-  if(!product.lot) missingNames.push('LOT');
-  title.innerHTML = missingNames.length>0 ? `📋 Complete: <span style="color:var(--yellow)">${missingNames.join(', ')}</span>` : '📋 Confirm Extracted Data';
+  ['ref','sn','psu','lot','exp'].forEach(f => {
+    const el = document.getElementById('p-'+f);
+    el.value = product[f] || '';
+    el.style.borderBottom = '';
+    el.style.color = '';
+  });
+  // Highlight missing important fields
+  const missing = [];
+  if (!product.sn)  { missing.push('SN');  highlightField('p-sn'); }
+  if (!product.exp) { missing.push('EXP'); highlightField('p-exp'); }
+  if (!product.ref) { missing.push('REF'); highlightField('p-ref'); }
+  const titleEl = document.getElementById('preview-title');
+  titleEl.innerHTML = missing.length > 0
+    ? '📋 Complete: <span style="color:var(--yellow)">' + missing.join(', ') + '</span>'
+    : '📋 Confirm Extracted Data';
+  document.getElementById('preview-card').classList.add('show');
   hideValidationBanner();
 }
 
-function dismissPreview(){document.getElementById('preview-card').classList.remove('show');hideValidationBanner();}
+function highlightField(id) {
+  const el = document.getElementById(id);
+  if (el) { el.style.borderBottom = '2px solid var(--yellow)'; el.style.color = 'var(--yellow)'; }
+}
+
+function dismissPreview() { document.getElementById('preview-card').classList.remove('show'); hideValidationBanner(); }
 
 function confirmProduct() {
-  const product={ref:document.getElementById('p-ref').value.trim().toUpperCase(),sn:document.getElementById('p-sn').value.trim(),psu:document.getElementById('p-psu').value.trim(),lot:document.getElementById('p-lot').value.trim().toUpperCase(),exp:document.getElementById('p-exp').value.trim(),timestamp:new Date().toISOString()};
-  if(!product.sn){toast('SN is required');return;}
+  const product = {
+    ref: document.getElementById('p-ref').value.trim().toUpperCase(),
+    sn:  document.getElementById('p-sn').value.trim(),
+    psu: document.getElementById('p-psu').value.trim(),
+    lot: document.getElementById('p-lot').value.trim().toUpperCase(),
+    exp: document.getElementById('p-exp').value.trim(),
+    timestamp: new Date().toISOString()
+  };
+  if (!product.sn) { toast('SN is required'); return; }
   addProduct(product); dismissPreview();
 }
 
 function submitManual() {
-  const product={ref:document.getElementById('m-ref').value.trim().toUpperCase(),sn:document.getElementById('m-sn').value.trim(),psu:document.getElementById('m-psu').value.trim(),lot:document.getElementById('m-lot').value.trim().toUpperCase(),exp:document.getElementById('m-exp').value.trim(),timestamp:new Date().toISOString()};
-  if(!product.sn){toast('SN is required');return;}
+  const product = {
+    ref: document.getElementById('m-ref').value.trim().toUpperCase(),
+    sn:  document.getElementById('m-sn').value.trim(),
+    psu: document.getElementById('m-psu').value.trim(),
+    lot: document.getElementById('m-lot').value.trim().toUpperCase(),
+    exp: document.getElementById('m-exp').value.trim(),
+    timestamp: new Date().toISOString()
+  };
+  if (!product.sn) { toast('SN is required'); return; }
   addProduct(product);
-  ['m-ref','m-sn','m-psu','m-lot','m-exp'].forEach(id=>document.getElementById(id).value='');
+  ['m-ref','m-sn','m-psu','m-lot','m-exp'].forEach(id => document.getElementById(id).value='');
   document.getElementById('m-sn').focus();
 }
 
+// ═══════════════ PRODUCT LOGIC ═══════════════
 function addProduct(product) {
-  product.status=validateProduct(product);
+  product.status = validateProduct(product);
   state.scanned.push(product);
-  auditRecord('KIT_SCANNED', `SN: ${product.sn} | REF: ${product.ref||'—'} | LOT: ${product.lot||'—'} | EXP: ${product.exp||'—'} | Status: ${product.status}`);
-  updateStats(); renderScanList(); showValidationBanner(product.status,product); updateProgress(); vibrate();
+  auditRecord('KIT_SCANNED', `SN:${product.sn}|REF:${product.ref||'—'}|LOT:${product.lot||'—'}|EXP:${product.exp||'—'}|Status:${product.status}`);
+  updateStats(); renderScanList(); showValidationBanner(product.status, product); updateProgress(); vibrate();
 }
 
 function validateProduct(product) {
-  if(state.scanned.find(p=>p.sn===product.sn)) return 'duplicate';
-  if(state.mode==='inventory') return isExpired(product.exp)?'expired':'scanned';
-  if(isExpired(product.exp)) return 'expired';
-  if(!state.iwrs.has(product.sn)) return 'unauthorized';
+  if (state.scanned.slice(0,-1).find(p=>p.sn===product.sn)) return 'duplicate';
+  if (state.mode==='inventory') return isExpired(product.exp) ? 'expired' : 'scanned';
+  if (isExpired(product.exp)) return 'expired';
+  if (!state.iwrs.has(product.sn)) return 'unauthorized';
   return 'authorized';
 }
 
 function isExpired(expStr) {
-  if(!expStr) return false;
+  if (!expStr) return false;
   try {
-    const parts=expStr.split(/[-\/]/); let month,year;
-    if(parts[0].length===4){year=parseInt(parts[0]);month=parseInt(parts[1]);}
-    else{month=parseInt(parts[0]);year=parseInt(parts[1]);}
-    if(isNaN(month)||isNaN(year)) return false;
-    return new Date(year,month,0)<new Date();
-  } catch{return false;}
+    const parts = expStr.split(/[-\/]/); let month, year;
+    if (parts[0].length===4) { year=parseInt(parts[0]); month=parseInt(parts[1]); }
+    else { month=parseInt(parts[0]); year=parseInt(parts[1]); }
+    if (isNaN(month)||isNaN(year)) return false;
+    return new Date(year, month, 0) < new Date();
+  } catch { return false; }
 }
 
 function updateStats() {
-  const c={total:state.scanned.length,authorized:0,duplicate:0,unauthorized:0,expired:0};
-  state.scanned.forEach(p=>{if(p.status==='scanned')c.authorized++;else if(c[p.status]!==undefined)c[p.status]++;});
-  document.getElementById('stat-total').textContent=c.total;
-  document.getElementById('stat-ok').textContent=c.authorized;
-  document.getElementById('stat-dup').textContent=c.duplicate;
-  document.getElementById('stat-unauth').textContent=c.unauthorized;
-  document.getElementById('stat-exp').textContent=c.expired;
-  document.querySelector('.stat-chip.ok .stat-lbl').textContent=state.mode==='inventory'?'Listed':'Auth';
-  document.querySelector('.stat-chip.unauth .stat-lbl').textContent=state.mode==='inventory'?'—':'Unauth';
+  const c = {total:state.scanned.length, authorized:0, scanned:0, duplicate:0, unauthorized:0, expired:0};
+  state.scanned.forEach(p => { if(c[p.status]!==undefined) c[p.status]++; });
+  document.getElementById('stat-total').textContent  = c.total;
+  document.getElementById('stat-ok').textContent     = c.authorized + c.scanned;
+  document.getElementById('stat-dup').textContent    = c.duplicate;
+  document.getElementById('stat-unauth').textContent = c.unauthorized;
+  document.getElementById('stat-exp').textContent    = c.expired;
+  document.getElementById('lbl-ok').textContent      = state.mode==='inventory' ? 'Listed' : 'Auth';
+  document.getElementById('lbl-unauth').textContent  = state.mode==='inventory' ? '—' : 'Unauth';
 }
 
 function updateProgress() {
-  const pct=state.iwrs.size>0?Math.min(100,(state.scanned.filter(p=>p.status==='authorized').length/state.iwrs.size)*100):0;
-  document.getElementById('progress-bar').style.width=pct+'%';
+  const pct = state.iwrs.size > 0 ? Math.min(100, (state.scanned.filter(p=>p.status==='authorized').length/state.iwrs.size)*100) : 0;
+  document.getElementById('progress-bar').style.width = pct + '%';
 }
 
-const STATUS_INFO={authorized:{icon:'✓',label:'Authorized'},scanned:{icon:'●',label:'Scanned'},duplicate:{icon:'⚠',label:'Duplicate'},unauthorized:{icon:'✕',label:'Unauthorized'},expired:{icon:'!',label:'Expired'}};
+const STATUS_INFO = {
+  authorized:   {icon:'✓', label:'Authorized'},
+  scanned:      {icon:'●', label:'Scanned'},
+  duplicate:    {icon:'⚠', label:'Duplicate'},
+  unauthorized: {icon:'✕', label:'Unauthorized'},
+  expired:      {icon:'!', label:'Expired'}
+};
 
 function renderScanList() {
-  const list=document.getElementById('scan-list');
-  if(state.scanned.length===0){list.innerHTML='<div class="empty-state"><div class="empty-icon">📦</div><p>No products scanned yet.<br>Point the camera at a label or QR code.</p></div>';return;}
-  list.innerHTML=[...state.scanned].reverse().map((p,ri)=>{
-    const i=state.scanned.length-1-ri, info=STATUS_INFO[p.status]||{icon:'?',label:p.status};
-    return `<div class="scan-item ${p.status}"><div class="scan-item-status">${info.icon}</div><div class="scan-item-info"><div class="scan-item-sn">SN: ${p.sn}</div><div class="scan-item-meta">LOT: ${p.lot||'—'} · EXP: ${p.exp||'—'} · ${info.label}</div></div><button class="scan-item-del" onclick="removeProduct(${i})">🗑</button></div>`;
+  const list = document.getElementById('scan-list');
+  if (state.scanned.length===0) {
+    list.innerHTML='<div class="empty-state"><div class="empty-icon">📦</div><p>No products scanned yet.<br>Point the camera at a label or QR code.</p></div>';
+    return;
+  }
+  list.innerHTML = [...state.scanned].reverse().map((p,ri) => {
+    const i = state.scanned.length-1-ri;
+    const info = STATUS_INFO[p.status] || {icon:'?',label:p.status};
+    return `<div class="scan-item ${p.status}">
+      <div class="scan-item-status">${info.icon}</div>
+      <div class="scan-item-info">
+        <div class="scan-item-sn">SN: ${p.sn}${p.ref?' · REF: '+p.ref:''}</div>
+        <div class="scan-item-meta">LOT: ${p.lot||'—'} · EXP: ${p.exp||'—'} · ${info.label}</div>
+      </div>
+      <button class="scan-item-del" onclick="removeProduct(${i})">🗑</button>
+    </div>`;
   }).join('');
 }
 
-function removeProduct(i){state.scanned.splice(i,1);updateStats();renderScanList();updateProgress();toast('Product removed');}
+function removeProduct(i) { state.scanned.splice(i,1); updateStats(); renderScanList(); updateProgress(); toast('Product removed'); }
 
-function showValidationBanner(status,product){
-  const banner=document.getElementById('validation-banner');
-  const msgs={authorized:`✓ Authorized — SN ${product.sn} confirmed in IWRS`,scanned:`● Listed — SN ${product.sn} added`,duplicate:`⚠ Duplicate — SN ${product.sn} already scanned`,unauthorized:`✕ Unauthorized — SN ${product.sn} not in IWRS`,expired:`! Expired — Product expired ${product.exp}`};
-  banner.className=`validation-banner show ${status}`; banner.textContent=msgs[status]||status;
-  clearTimeout(banner._t); banner._t=setTimeout(()=>hideValidationBanner(),4000);
+function showValidationBanner(status, product) {
+  const banner = document.getElementById('validation-banner');
+  const msgs = {
+    authorized:   '✓ Authorized — SN ' + product.sn + ' confirmed in IWRS',
+    scanned:      '● Listed — SN ' + product.sn + ' added',
+    duplicate:    '⚠ Duplicate — SN ' + product.sn + ' already scanned',
+    unauthorized: '✕ Not in IWRS — SN ' + product.sn,
+    expired:      '! Expired — EXP ' + product.exp
+  };
+  banner.className = 'validation-banner show ' + status;
+  banner.textContent = msgs[status] || status;
+  clearTimeout(banner._t); banner._t = setTimeout(() => hideValidationBanner(), 4000);
 }
-function hideValidationBanner(){document.getElementById('validation-banner').classList.remove('show');}
+function hideValidationBanner() { document.getElementById('validation-banner').classList.remove('show'); }
 
+// ═══════════════ SUMMARY ═══════════════
 function buildSummary() {
-  const s=state.session;
-  document.getElementById('sum-subtitle').textContent=`${s.site} · ${s.date} · ${s.cra}`;
-  const c={total:state.scanned.length,authorized:0,duplicate:0,unauthorized:0,expired:0};
-  state.scanned.forEach(p=>{if(c[p.status]!==undefined)c[p.status]++;});
-  ['total','ok','dup','unauth','exp'].forEach((k,i)=>document.getElementById('sum-'+k).textContent=Object.values(c)[i]);
-  document.getElementById('sum-tbody').innerHTML=state.scanned.map((p,i)=>`<tr class="${p.status}"><td>${i+1}</td><td>${p.sn}</td><td>${p.ref||'—'}</td><td>${p.lot||'—'}</td><td>${p.exp||'—'}</td><td><span class="status-badge ${p.status}">${STATUS_INFO[p.status]?.label||p.status}</span></td></tr>`).join('');
-  if(state.mode==='inventory'){document.getElementById('missing-section').style.display='none';return;}
-  const scannedSNs=new Set(state.scanned.map(p=>p.sn));
-  const missing=[]; state.iwrs.forEach((row,sn)=>{if(!scannedSNs.has(sn))missing.push({sn,row});});
-  if(missing.length>0){
+  const s = state.session;
+  document.getElementById('sum-subtitle').textContent = s.site + ' · ' + s.date + ' · ' + s.cra;
+  const c = {total:state.scanned.length, authorized:0, scanned:0, duplicate:0, unauthorized:0, expired:0};
+  state.scanned.forEach(p => { if(c[p.status]!==undefined) c[p.status]++; });
+  document.getElementById('sum-total').textContent  = c.total;
+  document.getElementById('sum-ok').textContent     = c.authorized + c.scanned;
+  document.getElementById('sum-dup').textContent    = c.duplicate;
+  document.getElementById('sum-unauth').textContent = c.unauthorized;
+  document.getElementById('sum-exp').textContent    = c.expired;
+  document.getElementById('sum-tbody').innerHTML = state.scanned.map((p,i) =>
+    `<tr class="${p.status}"><td>${i+1}</td><td>${p.sn}</td><td>${p.ref||'—'}</td><td>${p.lot||'—'}</td><td>${p.exp||'—'}</td><td><span class="status-badge ${p.status}">${STATUS_INFO[p.status]?.label||p.status}</span></td></tr>`
+  ).join('');
+  if (state.mode==='inventory') { document.getElementById('missing-section').style.display='none'; return; }
+  const scannedSNs = new Set(state.scanned.map(p=>p.sn));
+  const missing = []; state.iwrs.forEach((row,sn) => { if(!scannedSNs.has(sn)) missing.push({sn,row}); });
+  if (missing.length > 0) {
     document.getElementById('missing-section').style.display='block';
-    document.getElementById('missing-count-badge').textContent=`${missing.length} items not returned`;
-    const getVal=(row,keys)=>{for(const k of keys)if(row[k])return row[k];return '—';};
-    document.getElementById('missing-tbody').innerHTML=missing.map(({sn,row})=>`<tr class="missing"><td>${sn}</td><td>${getVal(row,['REF','ref'])}</td><td>${getVal(row,['LOT','lot'])}</td><td>${getVal(row,['EXP','exp','Expiry'])}</td><td><span class="status-badge missing">Not Returned</span></td></tr>`).join('');
+    document.getElementById('missing-count-badge').textContent = missing.length + ' items not returned';
+    const gv = (row,keys) => { for(const k of keys) if(row[k]) return row[k]; return '—'; };
+    document.getElementById('missing-tbody').innerHTML = missing.map(({sn,row}) =>
+      `<tr class="missing"><td>${sn}</td><td>${gv(row,['REF','ref'])}</td><td>${gv(row,['LOT','lot'])}</td><td>${gv(row,['EXP','exp','Expiry'])}</td><td><span class="status-badge missing">Not Returned</span></td></tr>`
+    ).join('');
   } else { document.getElementById('missing-section').style.display='none'; }
+  updateSessionStats(s.protocol, null, state.scanned.length);
 }
 
+// ═══════════════ EXPORT ═══════════════
 function exportExcel() {
-  const s=state.session, wb=XLSX.utils.book_new();
-  const scannedData=[['#','SN','REF','PSU','LOT','EXP','Status','Timestamp']].concat(state.scanned.map((p,i)=>[i+1,p.sn,p.ref||'',p.psu||'',p.lot||'',p.exp||'',STATUS_INFO[p.status]?.label||p.status,p.timestamp]));
-  const ws1=XLSX.utils.aoa_to_sheet(scannedData); ws1['!cols']=[4,14,12,8,12,10,14,22].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb,ws1,'Scanned Products');
-  const scannedSNs=new Set(state.scanned.map(p=>p.sn));
-  const missingRows=[['SN','REF','LOT','EXP','Status']];
-  state.iwrs.forEach((row,sn)=>{if(!scannedSNs.has(sn)){const g=(keys)=>{for(const k of keys)if(row[k])return row[k];return '';};missingRows.push([sn,g(['REF','ref']),g(['LOT','lot', 'Lot Number(s) Assigned', 'Lot Number(s)']),g(['EXP','exp','Expiry']),'Not Returned']);}});
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(missingRows),'Not Returned');
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Field','Value'],['Site',s.site],['Protocol',s.protocol||''],['CRA',s.cra],['Visit Date',s.date],['Export Date',new Date().toISOString()],[],['Total Scanned',state.scanned.length],['Authorized',state.scanned.filter(p=>p.status==='authorized').length],['Duplicates',state.scanned.filter(p=>p.status==='duplicate').length],['Unauthorized',state.scanned.filter(p=>p.status==='unauthorized').length],['Expired',state.scanned.filter(p=>p.status==='expired').length],['Not Returned',missingRows.length-1]]),'Session Info');
-  XLSX.writeFile(wb,`MedScan_${s.site.replace(/\s+/g,'_')}_${s.date}.xlsx`);
+  const s = state.session, wb = XLSX.utils.book_new();
+  const scannedData = [['#','SN','REF','PSU','LOT','EXP','Status','Timestamp']].concat(
+    state.scanned.map((p,i) => [i+1, p.sn, p.ref||'', p.psu||'', p.lot||'', p.exp||'', STATUS_INFO[p.status]?.label||p.status, p.timestamp])
+  );
+  const ws1 = XLSX.utils.aoa_to_sheet(scannedData);
+  ws1['!cols'] = [4,14,12,8,12,10,14,22].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, 'Scanned Products');
+  const scannedSNs = new Set(state.scanned.map(p=>p.sn));
+  const missingRows = [['SN','REF','LOT','EXP','Status']];
+  state.iwrs.forEach((row,sn) => {
+    if (!scannedSNs.has(sn)) {
+      const g = keys => { for(const k of keys) if(row[k]) return row[k]; return ''; };
+      missingRows.push([sn, g(['REF','ref']), g(['LOT','lot','Lot Number(s) Assigned']), g(['EXP','exp','Expiry']), 'Not Returned']);
+    }
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(missingRows), 'Not Returned');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['Field','Value'],['Site',s.site],['Protocol',s.protocol||''],['CRA',s.cra],['Visit Date',s.date],
+    ['Export Date',new Date().toISOString()],[],
+    ['Total Scanned',state.scanned.length],
+    ['Authorized',state.scanned.filter(p=>p.status==='authorized').length],
+    ['Scanned (Free)',state.scanned.filter(p=>p.status==='scanned').length],
+    ['Duplicates',state.scanned.filter(p=>p.status==='duplicate').length],
+    ['Unauthorized',state.scanned.filter(p=>p.status==='unauthorized').length],
+    ['Expired',state.scanned.filter(p=>p.status==='expired').length],
+    ['Not Returned',missingRows.length-1]
+  ]), 'Session Info');
+  // Audit log
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['Timestamp (UTC)','Action','Detail'], ...state.auditLog.map(e=>[e.ts,e.action,e.detail])
+  ]), 'Audit Log');
+  XLSX.writeFile(wb, 'MedScan_' + s.site.replace(/\s+/g,'_') + '_' + s.date + '.xlsx');
   toast('✓ Excel report downloaded');
 }
 
-// ════════════════════════════════════════════════════════
-//  UTILITIES
-// ════════════════════════════════════════════════════════
+// ═══════════════ UTILITIES ═══════════════
 function toast(msg, duration=2800) {
-  const el=document.getElementById('toast');
+  const el = document.getElementById('toast');
   el.textContent=msg; el.classList.add('show');
-  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),duration);
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'), duration);
 }
-function showLoading(msg='Processing…'){document.getElementById('loading-msg').textContent=msg;document.getElementById('loading-overlay').style.display = 'flex';}
-function hideLoading(){document.getElementById('loading-overlay').style.display = 'none';}
-function vibrate(){if(navigator.vibrate)navigator.vibrate([50]);}
+function showLoading(msg='Processing…') { document.getElementById('loading-msg').textContent=msg; document.getElementById('loading-overlay').style.display='flex'; }
+function hideLoading() { document.getElementById('loading-overlay').style.display='none'; }
+function vibrate() { if(navigator.vibrate) navigator.vibrate([50]); }
 
-// Drag & drop for IWRS
-const uploadZone=document.getElementById('upload-zone');
-uploadZone.addEventListener('dragover',e=>{e.preventDefault();uploadZone.classList.add('dragover');});
-uploadZone.addEventListener('dragleave',()=>uploadZone.classList.remove('dragover'));
-uploadZone.addEventListener('drop',e=>{e.preventDefault();uploadZone.classList.remove('dragover');const f=e.dataTransfer.files[0];if(f)handleIWRSUpload({target:{files:[f]}});});
 </script>
-
 </div>
 </body>
 </html>
