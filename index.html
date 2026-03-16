@@ -754,22 +754,8 @@ function handleQRResult(text) {
   const now = Date.now();
   if (text===lastQRText && now-lastQRTime<3000) return;
   lastQRText=text; lastQRTime=now;
-
-  // Show raw text in scan-status for debugging
-  const hexStr = Array.from(text).map(c => {
-    const code = c.charCodeAt(0);
-    return code < 32 || code > 126 ? '[' + code + ']' : c;
-  }).join('');
-  const statusEl = document.getElementById('scan-status');
-  statusEl.textContent = 'RAW: ' + hexStr;
-  statusEl.style.cssText = 'position:absolute;bottom:4px;left:4px;right:4px;transform:none;background:rgba(0,0,0,0.92);backdrop-filter:blur(8px);padding:6px 8px;border-radius:8px;font-size:9px;color:var(--yellow);white-space:normal;word-break:break-all;line-height:1.4;border:1px solid rgba(255,214,10,0.3);';
-  // keep it visible for 8 seconds
-  clearTimeout(statusEl._t);
-  statusEl._t = setTimeout(() => {
-    statusEl.textContent = 'Searching for code...';
-    statusEl.style.cssText = '';
-  }, 8000);
-
+  document.getElementById('scan-status').textContent = '✓ Code detected!';
+  setTimeout(() => { const el=document.getElementById('scan-status'); if(el) el.textContent='Searching for code...'; }, 1500);
   const parsed = parseQRData(text);
   if (parsed._gtinOnly) return;
   showPreview(parsed); vibrate();
@@ -790,7 +776,7 @@ function parseQRData(text) {
 
   // 3. GS1 binary with AI separators
   const gs1 = parseGS1(text);
-  if (gs1.sn || gs1.lot) return gs1;
+  if (gs1.sn || gs1.lot || gs1.ref) return gs1;
 
   // 4. Text-label format (e.g. "REF:EFC17504 SN:0044145 ...")
   return parseTextLabel(text);
@@ -823,35 +809,58 @@ function parseTextLabel(text) {
 function parseGS1(text) {
   const result = {}, SEP = '\x1d';
   let data = text.replace(/\u001d|\u001D|\u0004|□/g, SEP);
+
+  // Fixed-length AIs (2-char prefix, fixed data length)
   const FIXED2 = {'01':14,'02':14,'17':6,'11':6,'13':6,'15':6,'16':6};
-  const VAR2   = {'10':'lot','21':'sn','22':'psu'};
-  const VAR3   = {'240':'ref','241':'ref','250':'sn','251':'ref'};
-  const known2 = new Set(Object.keys(FIXED2).concat(Object.keys(VAR2)));
+  // Variable-length 2-char AIs
+  const VAR2 = {'10':'lot','21':'sn','22':'psu'};
+  // Variable-length 3-char AIs
+  const VAR3 = {'240':'ref','241':'ref','250':'sn','251':'ref'};
+  // Variable-length 4-char AIs — 7240 is Sanofi study reference (REF field)
+  const VAR4 = {'7240':'ref','7241':'ref','7230':'ref'};
+
+  const known4 = new Set(Object.keys(VAR4));
   const known3 = new Set(Object.keys(VAR3));
+  const known2 = new Set(Object.keys(FIXED2).concat(Object.keys(VAR2)));
+
+  // varEnd: stop ONLY at GS1 separator characters.
+  // Do NOT use AI-pattern detection here — e.g. "17" inside "EFC17504"
+  // would falsely match as expiry AI (17) and truncate the REF value.
   function varEnd(pos) {
-    let best = data.length;
-    const si = data.indexOf(SEP, pos); if (si !== -1 && si < best) best = si;
-    for (let j=pos+1; j<best; j++) { if (known3.has(data.substr(j,3))||known2.has(data.substr(j,2))) { best=j; break; } }
-    return best;
+    const si = data.indexOf(SEP, pos);
+    return si === -1 ? data.length : si;
   }
+
   let i = 0;
   while (i < data.length) {
-    if (data[i]===SEP) { i++; continue; }
-    const ai3=data.substr(i,3), ai2=data.substr(i,2);
-    if (known3.has(ai3)) {
-      i+=3; const end=varEnd(i); const val=data.substring(i,end).trim();
-      if (val) result[VAR3[ai3]]=val; i=(data[end]===SEP)?end+1:end;
-    } else if (FIXED2[ai2]!==undefined) {
-      const len=FIXED2[ai2], val=data.substr(i+2,len);
+    if (data[i] === SEP) { i++; continue; }
+    const ai4=data.substr(i,4), ai3=data.substr(i,3), ai2=data.substr(i,2);
+
+    if (known4.has(ai4)) {
+      // 4-char variable AI (e.g. 7240 = study REF)
+      i += 4; const end = varEnd(i); const val = data.substring(i,end).trim();
+      if (val) result[VAR4[ai4]] = val;
+      i = (data[end] === SEP) ? end+1 : end;
+
+    } else if (known3.has(ai3)) {
+      i += 3; const end = varEnd(i); const val = data.substring(i,end).trim();
+      if (val) result[VAR3[ai3]] = val;
+      i = (data[end] === SEP) ? end+1 : end;
+
+    } else if (FIXED2[ai2] !== undefined) {
+      const len = FIXED2[ai2], val = data.substr(i+2, len);
       if ((ai2==='17'||ai2==='15'||ai2==='16') && val.length===6) {
         const yy=val.substr(0,2), mm=val.substr(2,2);
         result.exp = mm+'-'+(parseInt(yy)>50?'19':'20')+yy;
       }
-      // AI 01 = GTIN — NOT the study REF
-      i+=2+len;
-    } else if (VAR2[ai2]!==undefined) {
-      i+=2; const end=varEnd(i); const val=data.substring(i,end).trim();
-      if (val) result[VAR2[ai2]]=val; i=(data[end]===SEP)?end+1:end;
+      // AI 01 = GTIN — intentionally NOT mapped to REF
+      i += 2 + len;
+
+    } else if (VAR2[ai2] !== undefined) {
+      i += 2; const end = varEnd(i); const val = data.substring(i,end).trim();
+      if (val) result[VAR2[ai2]] = val;
+      i = (data[end] === SEP) ? end+1 : end;
+
     } else { i++; }
   }
   return result;
