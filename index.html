@@ -4,7 +4,7 @@
 <!--
 ==========================================================================
   MedScan — Kit Scanning for Clinical Site Visits
-  v2.3.0 — fixes: scan list scroll, capture button clipping, preview card buttons
+  v2.4.0 — feat: auto-confirm on Capture & Extract for continuous scanning
 ==========================================================================
 -->
 <meta charset="UTF-8">
@@ -154,11 +154,6 @@ html, body {
 
 /* CAMERA */
 .camera-wrap { position:relative;border-radius:var(--radius);overflow:hidden;background:#000;margin-bottom:10px; }
-/* 
-  FIX: Reduced camera height from 260px → 220px so the capture button
-  and scan list are always visible without scrolling on small screens.
-  Max-height caps it on taller phones too.
-*/
 .camera-wrap video { width:100%;height:220px;max-height:38vh;display:block;object-fit:cover; }
 .scan-overlay { position:absolute;inset:0;border:2px solid rgba(0,196,180,0.4);border-radius:var(--radius);pointer-events:none; }
 .scan-frame   { position:absolute;inset:12px;border:1.5px solid rgba(0,196,180,0.5);border-radius:10px;pointer-events:none; }
@@ -238,40 +233,21 @@ html, body {
 .btn-row     { display:flex;gap:8px;margin-bottom:10px; }
 .btn-row .btn{ margin-top:0; }
 
-/* ── SCAN SCREEN LAYOUT ─────────────────────────────────────────
-   KEY FIX v2.3.0:
-   The old inner container had overflow:hidden which:
-     1) clipped the "Capture & Extract" button below the video in OCR mode
-     2) clipped the Confirm button in the preview card
-     3) prevented the scan list from actually scrolling (it was hidden)
-
-   New layout uses three flex zones:
-     .scan-capture-zone  → flex-shrink:0  (camera + tabs + manual inputs)
-     .scan-preview-zone  → flex-shrink:0  (preview card + validation banner)
-     .scan-list-zone     → flex:1 + overflow-y:auto + min-height:0  (scrollable log)
-
-   min-height:0 on the outer and list containers is the flexbox trick
-   that allows them to shrink below their content size and scroll properly.
-──────────────────────────────────────────────────────────────── */
 .scan-inner {
   padding: 0 16px;
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 0;          /* ← critical: allows flex children to shrink */
-  overflow: visible;      /* ← was overflow:hidden — that was the bug */
+  min-height: 0;
+  overflow: visible;
 }
-.scan-capture-zone {
-  flex-shrink: 0;         /* camera + tabs never shrink */
-}
-.scan-preview-zone {
-  flex-shrink: 0;         /* preview card + banner push scan list down, never clip */
-}
+.scan-capture-zone { flex-shrink: 0; }
+.scan-preview-zone { flex-shrink: 0; }
 .scan-list-zone {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  min-height: 0;          /* ← critical: allows this zone to shrink and scroll */
+  min-height: 0;
   padding-bottom: 16px;
 }
 .scan-list-zone::-webkit-scrollbar { display: none; }
@@ -362,7 +338,7 @@ html, body {
     </div>
     <div class="settings-section">
       <h3>📋 About MedScan</h3>
-      <p>Version 2.3.0 — Kit Scanning for CRAs. All data processed locally. Patient data never transmitted externally (except Claude API for OCR images).</p>
+      <p>Version 2.4.0 — Kit Scanning for CRAs. All data processed locally. Patient data never transmitted externally (except Claude API for OCR images).</p>
     </div>
   </div>
 </div>
@@ -409,10 +385,7 @@ html, body {
   </div>
 </div>
 
-<!-- SCANNING ─────────────────────────────────────────────────────────────
-  Layout fix: replaced the old single div with overflow:hidden
-  with three semantic zones: capture / preview / list (scrollable)
-──────────────────────────────────────────────────────────────────────── -->
+<!-- SCANNING -->
 <div class="screen" id="screen-scan">
   <div class="header">
     <div class="logo"><div class="logo-mark">M</div><div class="logo-text">Med<span>Scan</span></div></div>
@@ -422,7 +395,6 @@ html, body {
     </div>
   </div>
 
-  <!-- Fixed top bar info -->
   <div class="session-info-bar" id="session-info-bar" style="margin:8px 16px 0;flex-shrink:0;">
     <span><b id="si-site">—</b></span>
     <span>Protocol: <b id="si-protocol">—</b></span>
@@ -440,10 +412,9 @@ html, body {
     <div class="progress-bar" id="progress-bar"></div>
   </div>
 
-  <!-- Main scan area: 3-zone flex column -->
   <div class="scan-inner">
 
-    <!-- ZONE 1: capture (camera / ocr / manual) — never shrinks -->
+    <!-- ZONE 1: capture -->
     <div class="scan-capture-zone">
       <div class="capture-tabs" style="margin-top:10px;">
         <button class="capture-tab active" id="tab-qr"     onclick="switchTab('qr')">📷 QR</button>
@@ -473,8 +444,6 @@ html, body {
           <div class="scan-overlay"><div class="scan-frame"></div></div>
           <div class="scan-status">Position label · Tap Capture</div>
         </div>
-        <!-- FIX: button now lives in capture-zone (flex-shrink:0), so it's
-             always visible below the camera — no longer clipped by overflow -->
         <button class="btn btn-secondary" style="margin-bottom:10px;margin-top:0;" onclick="captureOCR()">📸 Capture &amp; Extract</button>
         <canvas id="canvas-ocr" style="display:none;"></canvas>
       </div>
@@ -493,7 +462,7 @@ html, body {
     </div>
     <!-- /ZONE 1 -->
 
-    <!-- ZONE 2: preview card + validation banner — never shrinks, pushes list down -->
+    <!-- ZONE 2: preview card + validation banner -->
     <div class="scan-preview-zone">
       <div class="preview-card" id="preview-card">
         <div class="preview-title" id="preview-title">📋 Confirm Extracted Data</div>
@@ -504,7 +473,6 @@ html, body {
           <div class="preview-field"><div class="pf-label">LOT</div><input type="text" id="p-lot"></div>
           <div class="preview-field" style="grid-column:1/-1;"><div class="pf-label">EXP</div><input type="text" id="p-exp"></div>
         </div>
-        <!-- FIX: buttons always visible because parent zone has flex-shrink:0 -->
         <div class="btn-row" style="margin-top:10px;">
           <button class="btn btn-secondary" onclick="dismissPreview()">✕ Discard</button>
           <button class="btn btn-primary"   onclick="confirmProduct()">✓ Confirm</button>
@@ -526,7 +494,6 @@ html, body {
     <!-- /ZONE 3 -->
 
   </div>
-  <!-- /scan-inner -->
 </div>
 
 <!-- SUMMARY -->
@@ -576,7 +543,7 @@ html, body {
 <script>
 
 // ═══════════════ STATE ═══════════════
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.4.0';
 const state = {
   session: null, mode: 'reconcile', scanned: [],
   iwrs: new Map(), iwrsRaw: [],
@@ -599,7 +566,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById(id).addEventListener('input', checkSetupReady));
   setMode('reconcile');
 
-  // Drag & drop for IWRS
   const zone = document.getElementById('upload-zone');
   zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
   zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
@@ -934,6 +900,18 @@ async function startOCRCamera() {
 }
 
 async function captureOCR() {
+  // ── v2.4.0: Auto-confirm previous scan if preview is still open ──
+  // This enables continuous scanning without manually tapping "Confirm"
+  // between each kit. If SN is missing, we block and warn instead of
+  // silently discarding — the user must resolve it first.
+  if (document.getElementById('preview-card').classList.contains('show')) {
+    if (!document.getElementById('p-sn').value.trim()) {
+      toast('⚠ SN requerido — completá el scan anterior primero');
+      return;
+    }
+    confirmProduct();
+  }
+
   const video  = document.getElementById('video-ocr');
   const canvas = document.getElementById('canvas-ocr');
   if (!state.ocrStream || video.readyState < 2) { toast('Camera not ready'); return; }
@@ -1017,7 +995,6 @@ function showPreview(product) {
     : '📋 Confirm Extracted Data';
   document.getElementById('preview-card').classList.add('show');
   hideValidationBanner();
-  // Scroll the list zone to top so preview card is in view
   document.querySelector('.scan-list-zone').scrollTop = 0;
 }
 
